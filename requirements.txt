@@ -1,0 +1,5 @@
+Streamlit
+haystack
+pandas
+numpy
+requests

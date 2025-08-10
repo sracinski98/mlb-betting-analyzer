@@ -1,0 +1,33 @@
+import csv
+import json
+
+print("Script started")
+
+try:
+    with open('/Users/steveracinski/Downloads/your_file.csv', newline='', encoding='utf-8') as csvfile:
+        print("CSV file opened")
+        reader = csv.DictReader(csvfile)
+        jobs = []
+        for row in reader:
+            print("Processing row")
+            skills = [row.get(col, "") for col in [
+                "air3-token", "air3-token 2", "air3-token 3", "air3-token 4", "air3-token 5", "air3-token 6"
+            ] if row.get(col, "")]
+            job = {
+                "title": row.get("air3-link", ""),
+                "description": row.get("mb-0", ""),
+                "pay": row.get("job-tile-info-list 3", ""),
+                "skills": skills,
+                "link": row.get("air3-link href", ""),
+                "country": row.get("air3-badge-tagline 4", ""),
+                "job_type": row.get("job-tile-info-list", ""),
+                "level": row.get("job-tile-info-list 2", "")
+            }
+            jobs.append(job)
+        print(f"Total jobs processed: {len(jobs)}")
+
+    with open('/Users/steveracinski/Downloads/jobs.json', 'w', encoding='utf-8') as jsonfile:
+        json.dump(jobs, jsonfile, indent=2)
+    print("JSON file saved to /Users/steveracinski/Downloads/jobs.json")
+except Exception as e:
+    print(f"Error: {e}")

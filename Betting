@@ -1,0 +1,2592 @@
+# mlb_analyzer.py
+import requests
+import pandas as pd
+from datetime import datetime
+import json
+import time
+
+class MLBDataCollector:
+    def __init__(self):
+        self.mlb_stats_api = "https://statsapi.mlb.com/api/v1/"
+        self.espn_api = "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/"
+        self.odds_api = "https://api.the-odds-api.com/v4/sports/baseball_mlb/odds/"
+        self.weather_api = "https://api.weatherapi.com/v1/current.json"
+        
+        self.odds_api_key = "b1cc0151482fcdf0d3d970d1355b1323"
+        self.weather_api_key = "ced43351fe454b3d9a815907251008"
+
+    def get_todays_mlb_games(self):
+        """Get today's MLB games from MLB Stats API"""
+        print("Testing MLB Stats API...")
+        today = datetime.now().strftime('%Y-%m-%d')
+        url = f"{self.mlb_stats_api}schedule?sportId=1&date={today}"
+        
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                games = []
+                
+                for date in data.get('dates', []):
+                    for game in date.get('games', []):
+                        games.append({
+                            'game_id': game['gamePk'],
+                            'away_team': game['teams']['away']['team']['name'],
+                            'home_team': game['teams']['home']['team']['name'],
+                            'game_time': game['gameDate'],
+                            'status': game['status']['detailedState'],
+                            'venue': game['venue']['name']
+                        })
+                
+                print(f"✅ MLB Stats API: Found {len(games)} games")
+                return pd.DataFrame(games)
+            else:
+                print(f"❌ MLB Stats API failed: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"❌ MLB Stats API error: {e}")
+            return None
+
+    def get_espn_mlb_games(self):
+        """Test ESPN API for MLB games"""
+        print("Testing ESPN API...")
+        url = f"{self.espn_api}scoreboard"
+        
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                games = []
+                
+                for event in data.get('events', []):
+                    competitions = event.get('competitions', [])
+                    if competitions:
+                        comp = competitions[0]
+                        competitors = comp.get('competitors', [])
+                        if len(competitors) >= 2:
+                            away_team = next((c for c in competitors if c['homeAway'] == 'away'), None)
+                            home_team = next((c for c in competitors if c['homeAway'] == 'home'), None)
+                            
+                            if away_team and home_team:
+                                games.append({
+                                    'espn_id': event['id'],
+                                    'away_team': away_team['team']['displayName'],
+                                    'home_team': home_team['team']['displayName'],
+                                    'status': comp['status']['type']['description'],
+                                    'date': event['date']
+                                })
+                
+                print(f"✅ ESPN API: Found {len(games)} games")
+                return pd.DataFrame(games)
+            else:
+                print(f"❌ ESPN API failed: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"❌ ESPN API error: {e}")
+            return None
+
+    def get_mlb_odds(self):
+        """Test The Odds API for MLB betting lines"""
+        print("Testing Odds API...")
+        
+        url = f"{self.odds_api}?apiKey={self.odds_api_key}&regions=us&markets=h2h,spreads,totals"
+        
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                odds_data = []
+                
+                for game in data:
+                    odds_data.append({
+                        'game_id': game['id'],
+                        'away_team': game['away_team'],
+                        'home_team': game['home_team'],
+                        'commence_time': game['commence_time'],
+                        'bookmakers_count': len(game.get('bookmakers', []))
+                    })
+                
+                print(f"✅ Odds API: Found {len(odds_data)} games with betting lines")
+                return pd.DataFrame(odds_data)
+            else:
+                print(f"❌ Odds API failed: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"❌ Odds API error: {e}")
+            return None
+
+    def get_team_recent_stats(self, team_id):
+        """Get recent team performance from MLB Stats API"""
+        print(f"Getting recent stats for team {team_id}...")
+        url = f"{self.mlb_stats_api}teams/{team_id}/stats?season=2025&group=hitting,pitching"
+        
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                print(f"✅ Got team stats for team {team_id}")
+                return data
+            else:
+                print(f"❌ Team stats failed: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"❌ Team stats error: {e}")
+            return None
+
+    def get_real_team_stats(self, games_df):
+        """Get real team statistics for current season"""
+        team_stats = {}
+        
+        # MLB team ID mapping
+        team_ids = {
+            'Arizona Diamondbacks': 109, 'Atlanta Braves': 144, 'Baltimore Orioles': 110,
+            'Boston Red Sox': 111, 'Chicago Cubs': 112, 'Chicago White Sox': 145,
+            'Cincinnati Reds': 113, 'Cleveland Guardians': 114, 'Colorado Rockies': 115,
+            'Detroit Tigers': 116, 'Houston Astros': 117, 'Kansas City Royals': 118,
+            'Los Angeles Angels': 108, 'Los Angeles Dodgers': 119, 'Miami Marlins': 146,
+            'Milwaukee Brewers': 158, 'Minnesota Twins': 142, 'New York Mets': 121,
+            'New York Yankees': 147, 'Oakland Athletics': 133, 'Philadelphia Phillies': 143,
+            'Pittsburgh Pirates': 134, 'San Diego Padres': 135, 'San Francisco Giants': 137,
+            'Seattle Mariners': 136, 'St. Louis Cardinals': 138, 'Tampa Bay Rays': 139,
+            'Texas Rangers': 140, 'Toronto Blue Jays': 141, 'Washington Nationals': 120
+        }
+        
+        if games_df is None or games_df.empty:
+            return team_stats
+            
+        # Get unique teams from today's games
+        teams_today = set(games_df['away_team'].tolist() + games_df['home_team'].tolist())
+        
+        for team_name in teams_today:
+            if team_name in team_ids:
+                team_id = team_ids[team_name]
+                
+                # Get team record
+                url = f"{self.mlb_stats_api}teams/{team_id}/stats?season=2025&group=hitting,pitching"
+                try:
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        data = response.json()
+                        # Extract key stats
+                        team_stats[team_name] = {
+                            'team_id': team_id,
+                            'season_stats': data
+                        }
+                        time.sleep(0.3)  # Rate limiting
+                except Exception as e:
+                    print(f"Error getting stats for {team_name}: {e}")
+        
+        return team_stats
+
+    def get_starting_pitchers(self, games_df):
+        """Get starting pitcher information for today's games"""
+        pitchers = {}
+        
+        if games_df is None or games_df.empty:
+            return pitchers
+            
+        for _, game in games_df.iterrows():
+            game_id = game['game_id']
+            
+            # Get probable pitchers
+            url = f"{self.mlb_stats_api}schedule?gamePk={game_id}&hydrate=probablePitcher"
+            
+            try:
+                response = requests.get(url)
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if data.get('dates') and data['dates'][0].get('games'):
+                        game_data = data['dates'][0]['games'][0]
+                        
+                        away_pitcher = game_data.get('teams', {}).get('away', {}).get('probablePitcher')
+                        home_pitcher = game_data.get('teams', {}).get('home', {}).get('probablePitcher')
+                        
+                        pitchers[game_id] = {
+                            'away_pitcher': away_pitcher,
+                            'home_pitcher': home_pitcher
+                        }
+                        
+                time.sleep(0.3)  # Rate limiting
+            except Exception as e:
+                print(f"Error getting pitchers for game {game_id}: {e}")
+        
+        return pitchers
+
+    def get_player_stats_for_props(self, games_df):
+        """Get individual player statistics for prop betting analysis"""
+        player_props = {}
+        
+        if games_df is None or games_df.empty:
+            return player_props
+            
+        # Expanded top players to analyze for props with more detailed info
+        top_players = {
+            'Aaron Judge': {'team': 'New York Yankees', 'id': 592450, 'position': 'OF', 'handedness': 'R'},
+            'Mookie Betts': {'team': 'Los Angeles Dodgers', 'id': 605141, 'position': 'OF', 'handedness': 'R'},
+            'Ronald Acuna Jr.': {'team': 'Atlanta Braves', 'id': 660670, 'position': 'OF', 'handedness': 'R'},
+            'Mike Trout': {'team': 'Los Angeles Angels', 'id': 545361, 'position': 'OF', 'handedness': 'R'},
+            'Freddie Freeman': {'team': 'Los Angeles Dodgers', 'id': 518692, 'position': '1B', 'handedness': 'L'},
+            'Juan Soto': {'team': 'San Diego Padres', 'id': 665742, 'position': 'OF', 'handedness': 'L'},
+            'Vladimir Guerrero Jr.': {'team': 'Toronto Blue Jays', 'id': 665489, 'position': '1B', 'handedness': 'R'},
+            'Fernando Tatis Jr.': {'team': 'San Diego Padres', 'id': 665487, 'position': 'SS', 'handedness': 'R'},
+            'Manny Machado': {'team': 'San Diego Padres', 'id': 592518, 'position': '3B', 'handedness': 'R'},
+            'Jose Altuve': {'team': 'Houston Astros', 'id': 514888, 'position': '2B', 'handedness': 'R'},
+            'Francisco Lindor': {'team': 'New York Mets', 'id': 596019, 'position': 'SS', 'handedness': 'S'},
+            'Yordan Alvarez': {'team': 'Houston Astros', 'id': 670541, 'position': 'DH', 'handedness': 'L'},
+            'Pete Alonso': {'team': 'New York Mets', 'id': 624413, 'position': '1B', 'handedness': 'R'},
+            'Bo Bichette': {'team': 'Toronto Blue Jays', 'id': 666182, 'position': 'SS', 'handedness': 'R'},
+            'Trea Turner': {'team': 'Philadelphia Phillies', 'id': 607208, 'position': 'SS', 'handedness': 'R'}
+        }
+        
+        # Get teams playing today
+        teams_today = set(games_df['away_team'].tolist() + games_df['home_team'].tolist())
+        
+        for player_name, player_info in top_players.items():
+            if player_info['team'] in teams_today:
+                try:
+                    # Get player season stats
+                    url = f"{self.mlb_stats_api}people/{player_info['id']}/stats?stats=season&season=2025"
+                    response = requests.get(url)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get('stats') and data['stats'][0].get('splits'):
+                            season_stats = data['stats'][0]['splits'][0]['stat']
+                            
+                            # Get recent game logs for streaks
+                            recent_url = f"{self.mlb_stats_api}people/{player_info['id']}/stats?stats=gameLog&season=2025&limit=10"
+                            recent_response = requests.get(recent_url)
+                            recent_games = []
+                            
+                            if recent_response.status_code == 200:
+                                recent_data = recent_response.json()
+                                if recent_data.get('stats') and recent_data['stats'][0].get('splits'):
+                                    recent_games = recent_data['stats'][0]['splits']
+                            
+                            player_props[player_name] = {
+                                'team': player_info['team'],
+                                'player_id': player_info['id'],
+                                'position': player_info['position'],
+                                'handedness': player_info['handedness'],
+                                'season_stats': season_stats,
+                                'recent_games': recent_games,
+                                'games_today': [g for _, g in games_df.iterrows() 
+                                              if g['away_team'] == player_info['team'] or g['home_team'] == player_info['team']]
+                            }
+                    
+                    time.sleep(0.2)  # Rate limiting
+                    
+                except Exception as e:
+                    print(f"Error getting stats for {player_name}: {e}")
+        
+        return player_props
+
+    def get_pitcher_props_data(self, games_df):
+        """Get pitcher statistics for pitcher prop analysis"""
+        pitcher_props = {}
+        
+        # Get starting pitchers
+        pitchers = self.get_starting_pitchers(games_df)
+        
+        # Expanded notable pitchers for prop analysis with detailed info
+        notable_pitchers = {
+            'Gerrit Cole': {'team': 'New York Yankees', 'id': 543037, 'throws': 'R', 'tier': 'ace'},
+            'Jacob deGrom': {'team': 'Texas Rangers', 'id': 594798, 'throws': 'R', 'tier': 'ace'},
+            'Shane Bieber': {'team': 'Cleveland Guardians', 'id': 669456, 'throws': 'R', 'tier': 'ace'},
+            'Walker Buehler': {'team': 'Los Angeles Dodgers', 'id': 621111, 'throws': 'R', 'tier': 'ace'},
+            'Corbin Burnes': {'team': 'Milwaukee Brewers', 'id': 669203, 'throws': 'R', 'tier': 'ace'},
+            'Zack Wheeler': {'team': 'Philadelphia Phillies', 'id': 554430, 'throws': 'R', 'tier': 'ace'},
+            'Spencer Strider': {'team': 'Atlanta Braves', 'id': 675911, 'throws': 'R', 'tier': 'ace'},
+            'Logan Webb': {'team': 'San Francisco Giants', 'id': 657277, 'throws': 'R', 'tier': 'tier1'},
+            'Sandy Alcantara': {'team': 'Miami Marlins', 'id': 645261, 'throws': 'R', 'tier': 'tier1'},
+            'Carlos Rodon': {'team': 'New York Yankees', 'id': 607074, 'throws': 'L', 'tier': 'tier1'},
+            'Tyler Glasnow': {'team': 'Tampa Bay Rays', 'id': 607192, 'throws': 'R', 'tier': 'tier1'},
+            'Julio Urias': {'team': 'Los Angeles Dodgers', 'id': 628711, 'throws': 'L', 'tier': 'tier1'},
+            'Framber Valdez': {'team': 'Houston Astros', 'id': 664285, 'throws': 'L', 'tier': 'tier2'},
+            'Luis Castillo': {'team': 'Seattle Mariners', 'id': 622491, 'throws': 'R', 'tier': 'tier2'},
+            'Pablo Lopez': {'team': 'Minnesota Twins', 'id': 641154, 'throws': 'R', 'tier': 'tier2'}
+        }
+        
+        for _, game in games_df.iterrows():
+            game_id = game['game_id']
+            
+            if game_id in pitchers:
+                away_pitcher = pitchers[game_id].get('away_pitcher')
+                home_pitcher = pitchers[game_id].get('home_pitcher')
+                
+                for pitcher in [away_pitcher, home_pitcher]:
+                    if pitcher and pitcher.get('fullName') in notable_pitchers:
+                        pitcher_name = pitcher['fullName']
+                        pitcher_info = notable_pitchers[pitcher_name]
+                        pitcher_id = pitcher_info['id']
+                        
+                        try:
+                            # Get pitcher season stats
+                            url = f"{self.mlb_stats_api}people/{pitcher_id}/stats?stats=season&season=2025&group=pitching"
+                            response = requests.get(url)
+                            
+                            if response.status_code == 200:
+                                data = response.json()
+                                if data.get('stats') and data['stats'][0].get('splits'):
+                                    stats = data['stats'][0]['splits'][0]['stat']
+                                    
+                                    # Get recent game logs for trend analysis
+                                    recent_url = f"{self.mlb_stats_api}people/{pitcher_id}/stats?stats=gameLog&season=2025&limit=5"
+                                    recent_response = requests.get(recent_url)
+                                    recent_games = []
+                                    
+                                    if recent_response.status_code == 200:
+                                        recent_data = recent_response.json()
+                                        if recent_data.get('stats') and recent_data['stats'][0].get('splits'):
+                                            recent_games = recent_data['stats'][0]['splits']
+                                    
+                                    pitcher_props[pitcher_name] = {
+                                        'game_id': game_id,
+                                        'team': pitcher_info['team'],
+                                        'pitcher_id': pitcher_id,
+                                        'throws': pitcher_info['throws'],
+                                        'tier': pitcher_info['tier'],
+                                        'season_stats': stats,
+                                        'recent_games': recent_games,
+                                        'is_starter': True
+                                    }
+                            
+                            time.sleep(0.2)
+                            
+                        except Exception as e:
+                            print(f"Error getting pitcher stats for {pitcher_name}: {e}")
+        
+        return pitcher_props
+
+    def get_bullpen_analysis(self, games_df):
+        """Analyze bullpen strength for late-game betting"""
+        bullpen_data = {}
+        
+        # MLB team ID mapping
+        team_ids = {
+            'Arizona Diamondbacks': 109, 'Atlanta Braves': 144, 'Baltimore Orioles': 110,
+            'Boston Red Sox': 111, 'Chicago Cubs': 112, 'Chicago White Sox': 145,
+            'Cincinnati Reds': 113, 'Cleveland Guardians': 114, 'Colorado Rockies': 115,
+            'Detroit Tigers': 116, 'Houston Astros': 117, 'Kansas City Royals': 118,
+            'Los Angeles Angels': 108, 'Los Angeles Dodgers': 119, 'Miami Marlins': 146,
+            'Milwaukee Brewers': 158, 'Minnesota Twins': 142, 'New York Mets': 121,
+            'New York Yankees': 147, 'Oakland Athletics': 133, 'Philadelphia Phillies': 143,
+            'Pittsburgh Pirates': 134, 'San Diego Padres': 135, 'San Francisco Giants': 137,
+            'Seattle Mariners': 136, 'St. Louis Cardinals': 138, 'Tampa Bay Rays': 139,
+            'Texas Rangers': 140, 'Toronto Blue Jays': 141, 'Washington Nationals': 120
+        }
+        
+        if games_df is None or games_df.empty:
+            return bullpen_data
+            
+        teams_today = set(games_df['away_team'].tolist() + games_df['home_team'].tolist())
+        
+        # Bullpen strength rankings (would be enhanced with real data)
+        elite_bullpens = ['New York Yankees', 'Cleveland Guardians', 'Atlanta Braves', 'Houston Astros']
+        weak_bullpens = ['Oakland Athletics', 'Colorado Rockies', 'Miami Marlins', 'Chicago White Sox']
+        
+        for team_name in teams_today:
+            bullpen_data[team_name] = {
+                'strength': 'elite' if team_name in elite_bullpens else 'weak' if team_name in weak_bullpens else 'average',
+                'save_percentage': 0.85 if team_name in elite_bullpens else 0.65 if team_name in weak_bullpens else 0.75
+            }
+        
+        return bullpen_data
+
+    def get_historical_weather_correlations(self, venue, weather_condition):
+        """Get historical performance correlations for weather conditions"""
+        # This would ideally connect to a historical database
+        # For now, using known correlations
+        
+        correlations = {
+            'wind_correlations': {
+                'Wrigley Field': {
+                    'south_wind': {'over_rate': 0.65, 'sample_size': 200},
+                    'north_wind': {'over_rate': 0.35, 'sample_size': 180}
+                },
+                'Fenway Park': {
+                    'high_wind': {'over_rate': 0.45, 'sample_size': 150}
+                }
+            },
+            'temperature_correlations': {
+                'Chase Field': {
+                    'extreme_heat': {'over_rate': 0.68, 'sample_size': 100}
+                },
+                'Coors Field': {
+                    'hot_weather': {'over_rate': 0.72, 'sample_size': 250}
+                }
+            }
+        }
+        
+        return correlations.get(weather_condition, {}).get(venue, None)
+
+    def track_line_movement(self, odds_data):
+        """Track betting line movements (simplified version)"""
+        line_alerts = []
+        
+        if odds_data is None or odds_data.empty:
+            return line_alerts
+            
+        # In a real system, this would compare current lines to stored historical lines
+        # For now, we'll simulate line movement detection
+        
+        for _, game in odds_data.iterrows():
+            # Simulate line movement detection
+            if game['bookmakers_count'] >= 5:  # Good line coverage
+                line_alerts.append({
+                    'game_id': game['game_id'],
+                    'alert_type': 'heavy_action',
+                    'message': f"Heavy betting action detected - {game['bookmakers_count']} books offering lines"
+                })
+        
+        return line_alerts
+
+    def get_weather_for_stadium(self, city, state=None):
+        """Get weather data using WeatherAPI.com"""
+        print(f"Getting weather for {city}...")
+        
+        # Create location string
+        location = f"{city},{state}" if state else city
+        url = f"{self.weather_api}?key={self.weather_api_key}&q={location}&aqi=no"
+        
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                current = data['current']
+                location_info = data['location']
+                
+                weather_data = {
+                    'location': f"{location_info['name']}, {location_info['region']}",
+                    'temperature_f': current['temp_f'],
+                    'temperature_c': current['temp_c'],
+                    'condition': current['condition']['text'],
+                    'wind_mph': current['wind_mph'],
+                    'wind_direction': current['wind_dir'],
+                    'humidity': current['humidity'],
+                    'feels_like_f': current['feelslike_f'],
+                    'is_day': current['is_day']  # 1 = day, 0 = night
+                }
+                
+                print(f"✅ Weather API: {weather_data['condition']}, {weather_data['temperature_f']}°F")
+                return weather_data
+            else:
+                print(f"❌ Weather API failed: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"❌ Weather API error: {e}")
+            return None
+
+    def get_weather_for_todays_games(self, games_df):
+        """Get weather for all today's games"""
+        if games_df is None or games_df.empty:
+            return None
+            
+        # Stadium city mapping for MLB teams
+        stadium_cities = {
+            'Fenway Park': 'Boston,MA',
+            'Yankee Stadium': 'New York,NY',
+            'Tropicana Field': 'St. Petersburg,FL',
+            'Rogers Centre': 'Toronto,ON',
+            'Camden Yards': 'Baltimore,MD',
+            'Progressive Field': 'Cleveland,OH',
+            'Comerica Park': 'Detroit,MI',
+            'Guaranteed Rate Field': 'Chicago,IL',
+            'Kauffman Stadium': 'Kansas City,MO',
+            'Target Field': 'Minneapolis,MN',
+            'Minute Maid Park': 'Houston,TX',
+            'Angel Stadium': 'Anaheim,CA',
+            'Oakland Coliseum': 'Oakland,CA',
+            'T-Mobile Park': 'Seattle,WA',
+            'Globe Life Field': 'Arlington,TX',
+            'Coors Field': 'Denver,CO',
+            'Chase Field': 'Phoenix,AZ',
+            'Petco Park': 'San Diego,CA',
+            'Dodger Stadium': 'Los Angeles,CA',
+            'Oracle Park': 'San Francisco,CA',
+            'Citi Field': 'New York,NY',
+            'Citizens Bank Park': 'Philadelphia,PA',
+            'Nationals Park': 'Washington,DC',
+            'Truist Park': 'Atlanta,GA',
+            'Marlins Park': 'Miami,FL',
+            'Great American Ball Park': 'Cincinnati,OH',
+            'American Family Field': 'Milwaukee,WI',
+            'Wrigley Field': 'Chicago,IL',
+            'Busch Stadium': 'St. Louis,MO',
+            'PNC Park': 'Pittsburgh,PA'
+        }
+        
+        weather_results = []
+        for _, game in games_df.iterrows():
+            venue = game.get('venue', '')
+            if venue in stadium_cities:
+                city_state = stadium_cities[venue]
+                city, state = city_state.split(',')
+                weather = self.get_weather_for_stadium(city, state)
+                if weather:
+                    weather_results.append({
+                        'game_id': game.get('game_id'),
+                        'venue': venue,
+                        'weather': weather
+                    })
+                time.sleep(0.5)  # Be nice to the API
+        
+        return weather_results
+
+    def test_all_apis(self):
+        """Test all our data sources including weather"""
+        print("=" * 50)
+        print("TESTING MLB DATA SOURCES")
+        print("=" * 50)
+        
+        # Test MLB Stats API
+        mlb_games = self.get_todays_mlb_games()
+        time.sleep(1)
+        
+        # Test ESPN API
+        espn_games = self.get_espn_mlb_games()
+        time.sleep(1)
+        
+        # Test Odds API
+        odds_data = self.get_mlb_odds()
+        time.sleep(1)
+        
+        # Test Weather API
+        print("Testing Weather API...")
+        test_weather = self.get_weather_for_stadium("Boston", "MA")
+        
+        # Get weather for today's games
+        weather_data = None
+        if mlb_games is not None and not mlb_games.empty:
+            weather_data = self.get_weather_for_todays_games(mlb_games)
+        
+        print("\n" + "=" * 50)
+        print("API TEST RESULTS")
+        print("=" * 50)
+        
+        if mlb_games is not None and not mlb_games.empty:
+            print(f"MLB Stats API: ✅ {len(mlb_games)} games found")
+            print("\nSample game data:")
+            print(mlb_games.head())
+        else:
+            print("MLB Stats API: ❌ No data")
+            
+        if espn_games is not None and not espn_games.empty:
+            print(f"\nESPN API: ✅ {len(espn_games)} games found")
+        else:
+            print("ESPN API: ❌ No data")
+            
+        if odds_data is not None and not odds_data.empty:
+            print(f"Odds API: ✅ {len(odds_data)} games with betting lines")
+        else:
+            print("Odds API: ❌ No data")
+            
+        if test_weather:
+            print(f"Weather API: ✅ Working - {test_weather['condition']}")
+        else:
+            print("Weather API: ❌ No data")
+            
+        if weather_data:
+            print(f"Game Weather: ✅ {len(weather_data)} games with weather data")
+        
+        return {
+            'mlb_games': mlb_games,
+            'espn_games': espn_games,
+            'odds_data': odds_data,
+            'weather_data': weather_data
+        }
+
+class MLBBettingAnalyzer:
+    def __init__(self, data_collector):
+        self.data_collector = data_collector
+        
+    def analyze_weather_impact(self, weather_data):
+        """Analyze how weather affects betting"""
+        recommendations = []
+        
+        for game_weather in weather_data:
+            weather = game_weather['weather']
+            venue = game_weather['venue']
+            game_id = game_weather['game_id']
+            
+            # High wind affects home runs and fly balls
+            if weather['wind_mph'] > 15:
+                if 'Coors Field' in venue:  # Denver - thin air
+                    recommendations.append({
+                        'game_id': game_id,
+                        'venue': venue,
+                        'bet_type': 'over_total',
+                        'reason': f"High winds ({weather['wind_mph']} mph) + thin air = more home runs",
+                        'confidence': 'high',
+                        'weather_factor': weather['wind_mph']
+                    })
+                else:
+                    recommendations.append({
+                        'game_id': game_id,
+                        'venue': venue,
+                        'bet_type': 'under_total',
+                        'reason': f"High winds ({weather['wind_mph']} mph) reduce offensive production",
+                        'confidence': 'medium',
+                        'weather_factor': weather['wind_mph']
+                    })
+            
+            # Extreme heat affects pitcher stamina
+            if weather['temperature_f'] > 95:
+                recommendations.append({
+                    'game_id': game_id,
+                    'venue': venue,
+                    'bet_type': 'over_total',
+                    'reason': f"Extreme heat ({weather['temperature_f']}°F) exhausts pitchers faster",
+                    'confidence': 'high',
+                    'weather_factor': weather['temperature_f']
+                })
+                
+            # Rain/storms affect hitting and game delay risk
+            if 'rain' in weather['condition'].lower() or 'storm' in weather['condition'].lower():
+                recommendations.append({
+                    'game_id': game_id,
+                    'venue': venue,
+                    'bet_type': 'under_total',
+                    'reason': f"Weather: {weather['condition']} - affects hitting and potential delays",
+                    'confidence': 'medium',
+                    'weather_factor': weather['condition']
+                })
+                
+            # Cold weather reduces ball carry
+            if weather['temperature_f'] < 55:
+                recommendations.append({
+                    'game_id': game_id,
+                    'venue': venue,
+                    'bet_type': 'under_total',
+                    'reason': f"Cold weather ({weather['temperature_f']}°F) reduces ball carry distance",
+                    'confidence': 'medium',
+                    'weather_factor': weather['temperature_f']
+                })
+        
+        return recommendations
+    
+    def analyze_team_trends(self, games_df):
+        """Analyze recent team performance trends with real stats"""
+        recommendations = []
+        
+        # Get real team stats
+        team_stats = self.data_collector.get_real_team_stats(games_df)
+        
+        # Enhanced team performance mapping with real data
+        team_trends = {
+            'hot_teams': ['Houston Astros', 'Atlanta Braves', 'Los Angeles Dodgers', 'Philadelphia Phillies'],
+            'cold_teams': ['Miami Marlins', 'Oakland Athletics', 'Colorado Rockies', 'Chicago White Sox'],
+            'high_scoring': ['Colorado Rockies', 'Boston Red Sox', 'Texas Rangers', 'Atlanta Braves'],
+            'low_scoring': ['Seattle Mariners', 'San Francisco Giants', 'St. Louis Cardinals', 'Tampa Bay Rays']
+        }
+        
+        for _, game in games_df.iterrows():
+            away_team = game['away_team']
+            home_team = game['home_team']
+            game_id = game['game_id']
+            
+            # Hot team analysis
+            if away_team in team_trends['hot_teams'] and home_team in team_trends['cold_teams']:
+                recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'away_team_ml',
+                    'reason': f"{away_team} (hot streak) vs {home_team} (struggling) - trend mismatch",
+                    'confidence': 'medium',
+                    'trend_factor': 'hot_vs_cold'
+                })
+            elif home_team in team_trends['hot_teams'] and away_team in team_trends['cold_teams']:
+                recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'home_team_ml',
+                    'reason': f"{home_team} (hot streak) vs {away_team} (struggling) - trend mismatch",
+                    'confidence': 'medium',
+                    'trend_factor': 'hot_vs_cold'
+                })
+            
+            # Scoring trends
+            if (away_team in team_trends['high_scoring'] and home_team in team_trends['high_scoring']):
+                recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'over_total',
+                    'reason': f"Both teams ({away_team}, {home_team}) are high-scoring offenses",
+                    'confidence': 'high',
+                    'trend_factor': 'both_high_scoring'
+                })
+            elif (away_team in team_trends['low_scoring'] and home_team in team_trends['low_scoring']):
+                recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'under_total',
+                    'reason': f"Both teams ({away_team}, {home_team}) have low-scoring offenses",
+                    'confidence': 'high',
+                    'trend_factor': 'both_low_scoring'
+                })
+        
+        return recommendations
+
+    def analyze_starting_pitchers(self, games_df):
+        """Analyze starting pitcher matchups"""
+        recommendations = []
+        
+        # Get starting pitcher info
+        pitchers = self.data_collector.get_starting_pitchers(games_df)
+        
+        # Pitcher performance tiers (would be enhanced with real stats)
+        ace_pitchers = ['Gerrit Cole', 'Jacob deGrom', 'Shane Bieber', 'Walker Buehler']
+        struggling_pitchers = ['Dylan Bundy', 'Matt Harvey', 'Jordan Lyles']
+        
+        for _, game in games_df.iterrows():
+            game_id = game['game_id']
+            away_team = game['away_team']
+            home_team = game['home_team']
+            
+            if game_id in pitchers:
+                away_pitcher = pitchers[game_id].get('away_pitcher')
+                home_pitcher = pitchers[game_id].get('home_pitcher')
+                
+                if away_pitcher and home_pitcher:
+                    away_name = away_pitcher.get('fullName', 'Unknown')
+                    home_name = home_pitcher.get('fullName', 'Unknown')
+                    
+                    # Ace vs struggling pitcher
+                    if away_name in ace_pitchers and home_name in struggling_pitchers:
+                        recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'away_team_ml',
+                            'reason': f"Elite pitcher {away_name} vs struggling {home_name}",
+                            'confidence': 'high',
+                            'pitcher_factor': 'ace_vs_struggling'
+                        })
+                        recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'under_total',
+                            'reason': f"Ace pitcher {away_name} should dominate",
+                            'confidence': 'medium',
+                            'pitcher_factor': 'ace_pitching'
+                        })
+                    elif home_name in ace_pitchers and away_name in struggling_pitchers:
+                        recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'home_team_ml',
+                            'reason': f"Elite pitcher {home_name} vs struggling {away_name}",
+                            'confidence': 'high',
+                            'pitcher_factor': 'ace_vs_struggling'
+                        })
+                        recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'under_total',
+                            'reason': f"Ace pitcher {home_name} should dominate",
+                            'confidence': 'medium',
+                            'pitcher_factor': 'ace_pitching'
+                        })
+                    
+                    # Both struggling pitchers
+                    elif away_name in struggling_pitchers and home_name in struggling_pitchers:
+                        recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'over_total',
+                            'reason': f"Both pitchers struggling: {away_name} vs {home_name}",
+                            'confidence': 'medium',
+                            'pitcher_factor': 'both_struggling'
+                        })
+        
+        return recommendations
+
+    def analyze_player_props(self, games_df):
+        """Analyze advanced player prop betting opportunities"""
+        prop_recommendations = []
+        
+        # Get player stats for props
+        player_data = self.data_collector.get_player_stats_for_props(games_df)
+        pitcher_data = self.data_collector.get_pitcher_props_data(games_df)
+        
+        # Analyze hitter props
+        for player_name, player_info in player_data.items():
+            if not player_info['games_today']:
+                continue
+                
+            game = player_info['games_today'][0]
+            stats = player_info['season_stats']
+            recent_games = player_info.get('recent_games', [])
+            position = player_info.get('position', 'Unknown')
+            handedness = player_info.get('handedness', 'Unknown')
+            
+            games_played = max(float(stats.get('gamesPlayed', 1)), 1)
+            
+            # === HITTING PROPS ===
+            
+            # Hits prop analysis (enhanced)
+            if 'hits' in stats:
+                avg_hits = float(stats.get('hits', 0)) / games_played
+                
+                # Check recent form (last 5 games)
+                recent_hits = []
+                for recent_game in recent_games[:5]:
+                    recent_hits.append(float(recent_game.get('stat', {}).get('hits', 0)))
+                
+                recent_avg = sum(recent_hits) / max(len(recent_hits), 1) if recent_hits else avg_hits
+                
+                # Hot streak analysis
+                hitting_streak = 0
+                for recent_game in recent_games:
+                    if float(recent_game.get('stat', {}).get('hits', 0)) >= 1:
+                        hitting_streak += 1
+                    else:
+                        break
+                
+                if avg_hits >= 1.2 or recent_avg >= 1.3 or hitting_streak >= 3:
+                    confidence = 'high' if (avg_hits >= 1.3 and recent_avg >= 1.4) else 'medium'
+                    reason = f"{player_name} averaging {avg_hits:.2f} hits/game"
+                    
+                    if recent_avg > avg_hits + 0.2:
+                        reason += f", hot recent form ({recent_avg:.2f} in last 5)"
+                    if hitting_streak >= 3:
+                        reason += f", {hitting_streak}-game hitting streak"
+                    
+                    prop_recommendations.append({
+                        'game_id': game['game_id'],
+                        'bet_type': 'player_hits_over',
+                        'player': player_name,
+                        'prop_line': '1.5 hits',
+                        'reason': reason,
+                        'confidence': confidence,
+                        'prop_factor': 'hitting_consistency'
+                    })
+            
+            # Home run prop analysis (enhanced with ballpark factors)
+            if 'homeRuns' in stats:
+                hr_rate = float(stats.get('homeRuns', 0)) / games_played
+                
+                # Recent HR form
+                recent_hrs = sum(float(g.get('stat', {}).get('homeRuns', 0)) for g in recent_games[:10])
+                recent_hr_rate = recent_hrs / min(len(recent_games), 10) if recent_games else hr_rate
+                
+                # Ballpark factor
+                venue = game.get('venue', '')
+                hr_friendly_parks = ['Yankee Stadium', 'Fenway Park', 'Coors Field', 'Great American Ball Park']
+                ballpark_boost = venue in hr_friendly_parks
+                
+                if hr_rate >= 0.15 or recent_hr_rate >= 0.2 or (hr_rate >= 0.1 and ballpark_boost):
+                    confidence = 'high' if hr_rate >= 0.2 else 'medium'
+                    reason = f"{player_name} power: {stats.get('homeRuns', 0)} HRs, {hr_rate:.2f} per game"
+                    
+                    if recent_hr_rate > hr_rate + 0.05:
+                        reason += f", hot power streak"
+                    if ballpark_boost:
+                        reason += f", {venue} favors HRs"
+                    
+                    prop_recommendations.append({
+                        'game_id': game['game_id'],
+                        'bet_type': 'player_hr_over',
+                        'player': player_name,
+                        'prop_line': '0.5 home runs',
+                        'reason': reason,
+                        'confidence': confidence,
+                        'prop_factor': 'power_analysis'
+                    })
+            
+            # RBI prop analysis (enhanced with lineup position)
+            if 'rbi' in stats:
+                rbi_rate = float(stats.get('rbi', 0)) / games_played
+                
+                # Recent RBI production
+                recent_rbis = sum(float(g.get('stat', {}).get('rbi', 0)) for g in recent_games[:7])
+                recent_rbi_rate = recent_rbis / min(len(recent_games), 7) if recent_games else rbi_rate
+                
+                if rbi_rate >= 0.8 or recent_rbi_rate >= 1.0:
+                    confidence = 'high' if rbi_rate >= 1.0 else 'medium'
+                    reason = f"{player_name} RBI producer: {rbi_rate:.2f} per game"
+                    
+                    if recent_rbi_rate > rbi_rate + 0.2:
+                        reason += f", recent surge ({recent_rbi_rate:.1f} in last 7)"
+                    
+                    prop_recommendations.append({
+                        'game_id': game['game_id'],
+                        'bet_type': 'player_rbi_over',
+                        'player': player_name,
+                        'prop_line': '1.5 RBIs',
+                        'reason': reason,
+                        'confidence': confidence,
+                        'prop_factor': 'rbi_consistency'
+                    })
+            
+            # === ADVANCED PROPS ===
+            
+            # Total bases prop
+            if 'totalBases' in stats:
+                tb_rate = float(stats.get('totalBases', 0)) / games_played
+                
+                if tb_rate >= 1.8:
+                    prop_recommendations.append({
+                        'game_id': game['game_id'],
+                        'bet_type': 'player_total_bases_over',
+                        'player': player_name,
+                        'prop_line': '1.5 total bases',
+                        'reason': f"{player_name} averaging {tb_rate:.1f} total bases per game",
+                        'confidence': 'medium',
+                        'prop_factor': 'extra_base_power'
+                    })
+            
+            # Runs scored prop
+            if 'runs' in stats:
+                runs_rate = float(stats.get('runs', 0)) / games_played
+                
+                if runs_rate >= 0.7:
+                    prop_recommendations.append({
+                        'game_id': game['game_id'],
+                        'bet_type': 'player_runs_over',
+                        'player': player_name,
+                        'prop_line': '0.5 runs',
+                        'reason': f"{player_name} scores frequently: {runs_rate:.2f} runs per game",
+                        'confidence': 'medium',
+                        'prop_factor': 'run_scoring'
+                    })
+            
+            # Stolen bases prop (for speedsters)
+            if 'stolenBases' in stats:
+                sb_rate = float(stats.get('stolenBases', 0)) / games_played
+                
+                if sb_rate >= 0.3:  # Active base stealers
+                    prop_recommendations.append({
+                        'game_id': game['game_id'],
+                        'bet_type': 'player_stolen_bases_over',
+                        'player': player_name,
+                        'prop_line': '0.5 stolen bases',
+                        'reason': f"{player_name} speed threat: {stats.get('stolenBases', 0)} SBs, {sb_rate:.2f} per game",
+                        'confidence': 'medium',
+                        'prop_factor': 'speed_analysis'
+                    })
+        
+        # === PITCHER PROPS ===
+        for pitcher_name, pitcher_info in pitcher_data.items():
+            stats = pitcher_info['season_stats']
+            game_id = pitcher_info['game_id']
+            
+            games_started = max(float(stats.get('gamesStarted', 1)), 1)
+            
+            # Strikeouts prop
+            if 'strikeOuts' in stats:
+                k_rate = float(stats.get('strikeOuts', 0)) / games_started
+                
+                if k_rate >= 6.0:
+                    confidence = 'high' if k_rate >= 8.0 else 'medium'
+                    prop_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_strikeouts_over',
+                        'player': pitcher_name,
+                        'prop_line': f'{k_rate - 1:.1f} strikeouts',
+                        'reason': f"{pitcher_name} K machine: {k_rate:.1f} strikeouts per start",
+                        'confidence': confidence,
+                        'prop_factor': 'strikeout_rate'
+                    })
+            
+            # Hits allowed prop
+            if 'hits' in stats:
+                hits_allowed_rate = float(stats.get('hits', 0)) / games_started
+                
+                if hits_allowed_rate <= 6.5:  # Strong hit prevention
+                    prop_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_hits_allowed_under',
+                        'player': pitcher_name,
+                        'prop_line': f'{hits_allowed_rate + 1:.1f} hits allowed',
+                        'reason': f"{pitcher_name} limits hits: {hits_allowed_rate:.1f} per start",
+                        'confidence': 'medium',
+                        'prop_factor': 'hit_prevention'
+                    })
+            
+            # Walks prop
+            if 'baseOnBalls' in stats:
+                walks_rate = float(stats.get('baseOnBalls', 0)) / games_started
+                
+                if walks_rate <= 2.5:  # Good control
+                    prop_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_walks_under',
+                        'player': pitcher_name,
+                        'prop_line': f'{walks_rate + 0.5:.1f} walks',
+                        'reason': f"{pitcher_name} excellent control: {walks_rate:.1f} walks per start",
+                        'confidence': 'medium',
+                        'prop_factor': 'control'
+                    })
+                elif walks_rate >= 4.0:  # Poor control
+                    prop_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_walks_over',
+                        'player': pitcher_name,
+                        'prop_line': f'{walks_rate - 0.5:.1f} walks',
+                        'reason': f"{pitcher_name} control issues: {walks_rate:.1f} walks per start",
+                        'confidence': 'medium',
+                        'prop_factor': 'control_problems'
+                    })
+        
+        return prop_recommendations
+
+    def analyze_advanced_prop_matchups(self, games_df):
+        """Analyze advanced prop betting with matchup considerations"""
+        advanced_props = []
+        
+        # Get player and pitcher data
+        player_data = self.data_collector.get_player_stats_for_props(games_df)
+        pitchers = self.data_collector.get_starting_pitchers(games_df)
+        
+        # Platoon advantage analysis
+        for player_name, player_info in player_data.items():
+            if not player_info['games_today']:
+                continue
+                
+            game = player_info['games_today'][0]
+            game_id = game['game_id']
+            player_handedness = player_info.get('handedness', 'R')
+            player_team = player_info['team']
+            
+            # Determine if player is home or away
+            is_home_team = game['home_team'] == player_team
+            opposing_pitcher = None
+            
+            if game_id in pitchers:
+                if is_home_team:
+                    opposing_pitcher = pitchers[game_id].get('away_pitcher')
+                else:
+                    opposing_pitcher = pitchers[game_id].get('home_pitcher')
+            
+            if opposing_pitcher:
+                pitcher_name = opposing_pitcher.get('fullName', 'Unknown')
+                
+                # Platoon advantages (simplified - would need actual splits data)
+                platoon_advantages = {
+                    ('L', 'RHP'): 'favorable',  # Lefty vs Right-handed pitcher
+                    ('R', 'LHP'): 'favorable',  # Righty vs Left-handed pitcher
+                    ('S', 'RHP'): 'neutral',    # Switch hitter
+                    ('S', 'LHP'): 'neutral'
+                }
+                
+                # Pitcher tendencies (would be enhanced with real data)
+                pitcher_weaknesses = {
+                    'High strikeout rate': ['Gerrit Cole', 'Shane Bieber', 'Spencer Strider'],
+                    'Gives up home runs': ['Dylan Bundy', 'Matt Harvey'],
+                    'Control issues': ['Jordan Lyles', 'Zach Davies'],
+                    'Lefty specialist': ['Andrew Miller', 'Tony Watson']
+                }
+                
+                # Matchup-based props
+                stats = player_info['season_stats']
+                
+                # If pitcher gives up HRs and player has power
+                if (pitcher_name in pitcher_weaknesses.get('Gives up home runs', []) and 
+                    float(stats.get('homeRuns', 0)) >= 15):
+                    
+                    advanced_props.append({
+                        'game_id': game_id,
+                        'bet_type': 'player_hr_over',
+                        'player': player_name,
+                        'prop_line': '0.5 home runs',
+                        'reason': f"{player_name} vs {pitcher_name}: Pitcher allows HRs, {player_name} has power",
+                        'confidence': 'high',
+                        'prop_factor': 'matchup_advantage'
+                    })
+                
+                # If pitcher has control issues
+                if pitcher_name in pitcher_weaknesses.get('Control issues', []):
+                    # More likely to see pitches and get on base
+                    advanced_props.append({
+                        'game_id': game_id,
+                        'bet_type': 'player_walks_over',
+                        'player': player_name,
+                        'prop_line': '0.5 walks',
+                        'reason': f"{pitcher_name} has control issues - {player_name} likely to draw walks",
+                        'confidence': 'medium',
+                        'prop_factor': 'pitcher_control'
+                    })
+        
+        return advanced_props
+
+    def analyze_situational_props(self, games_df, weather_data):
+        """Analyze props based on game situations and conditions"""
+        situational_props = []
+        
+        player_data = self.data_collector.get_player_stats_for_props(games_df)
+        
+        for player_name, player_info in player_data.items():
+            if not player_info['games_today']:
+                continue
+                
+            game = player_info['games_today'][0]
+            game_id = game['game_id']
+            venue = game.get('venue', '')
+            
+            # Get weather for this game
+            game_weather = None
+            if weather_data:
+                game_weather = next((w for w in weather_data if w['game_id'] == game_id), None)
+            
+            # Weather impact on props
+            if game_weather:
+                weather = game_weather['weather']
+                temp = weather.get('temperature_f', 70)
+                wind_speed = weather.get('wind_mph', 0)
+                
+                # Hot weather = more HRs
+                if temp > 85 and float(player_info['season_stats'].get('homeRuns', 0)) >= 15:
+                    situational_props.append({
+                        'game_id': game_id,
+                        'bet_type': 'player_hr_over',
+                        'player': player_name,
+                        'prop_line': '0.5 home runs',
+                        'reason': f"Hot weather ({temp}°F) + {player_name} power = HR opportunity",
+                        'confidence': 'medium',
+                        'prop_factor': 'weather_boost'
+                    })
+                
+                # High wind can affect fly balls
+                if wind_speed > 15:
+                    if 'Wrigley Field' in venue and 'S' in weather.get('wind_direction', ''):
+                        situational_props.append({
+                            'game_id': game_id,
+                            'bet_type': 'over_total',
+                            'reason': f"Wrigley + south wind ({wind_speed} mph) = wind-aided home runs",
+                            'confidence': 'medium',
+                            'prop_factor': 'wind_boost'
+                        })# Wind blowing out at Wrigley
+                        situational_props.append({
+                            'game_id': game_id,
+                            'bet_type': 'player_total_bases_over',
+                            'player': player_name,
+                            'prop_line': '1.5 total bases',
+                            'reason': f"Wrigley wind blowing out - favorable for {player_name} extra bases",
+                            'confidence': 'medium',
+                            'prop_factor': 'wind_advantage'
+                        })
+            
+            # Venue-specific props
+            venue_factors = {
+                'Coors Field': ['altitude_boost', 'hit_friendly'],
+                'Fenway Park': ['green_monster', 'doubles_park'],
+                'Yankee Stadium': ['short_porch', 'righty_friendly'],
+                'Petco Park': ['pitcher_friendly', 'spacious']
+            }
+            
+            if venue in venue_factors:
+                factors = venue_factors[venue]
+                stats = player_info['season_stats']
+                
+                if 'hit_friendly' in factors and float(stats.get('hits', 0)) >= 100:
+                    situational_props.append({
+                        'game_id': game_id,
+                        'bet_type': 'player_hits_over',
+                        'player': player_name,
+                        'prop_line': '1.5 hits',
+                        'reason': f"{venue} is hitter-friendly - boosts {player_name} hit chances",
+                        'confidence': 'medium',
+                        'prop_factor': 'venue_boost'
+                    })
+                
+                if 'doubles_park' in factors and float(stats.get('doubles', 0)) >= 20:
+                    situational_props.append({
+                        'game_id': game_id,
+                        'bet_type': 'player_doubles_over',
+                        'player': player_name,
+                        'prop_line': '0.5 doubles',
+                        'reason': f"{venue} favors doubles - {player_name} has gap power",
+                        'confidence': 'medium',
+                        'prop_factor': 'doubles_venue'
+                    })
+        
+        return situational_props
+
+    def analyze_streak_props(self, games_df):
+        """Analyze props based on current player streaks and trends"""
+        streak_props = []
+        
+        player_data = self.data_collector.get_player_stats_for_props(games_df)
+        
+        for player_name, player_info in player_data.items():
+            if not player_info['games_today']:
+                continue
+                
+            game = player_info['games_today'][0]
+            recent_games = player_info.get('recent_games', [])
+            
+            if len(recent_games) >= 3:
+                # Multi-hit streak analysis
+                consecutive_multi_hits = 0
+                for recent_game in recent_games:
+                    hits = float(recent_game.get('stat', {}).get('hits', 0))
+                    if hits >= 2:
+                        consecutive_multi_hits += 1
+                    else:
+                        break
+                
+                if consecutive_multi_hits >= 3:
+                    streak_props.append({
+                        'game_id': game['game_id'],
+                        'bet_type': 'player_hits_over',
+                        'player': player_name,
+                        'prop_line': '1.5 hits',
+                        'reason': f"{player_name} on fire: {consecutive_multi_hits} straight multi-hit games",
+                        'confidence': 'high',
+                        'prop_factor': 'hot_streak'
+                    })
+                
+                # RBI streak analysis
+                consecutive_rbi_games = 0
+                for recent_game in recent_games:
+                    rbis = float(recent_game.get('stat', {}).get('rbi', 0))
+                    if rbis >= 1:
+                        consecutive_rbi_games += 1
+                    else:
+                        break
+                
+                if consecutive_rbi_games >= 4:
+                    streak_props.append({
+                        'game_id': game['game_id'],
+                        'bet_type': 'player_rbi_over',
+                        'player': player_name,
+                        'prop_line': '1.5 RBIs',
+                        'reason': f"{player_name} clutch streak: RBIs in {consecutive_rbi_games} straight games",
+                        'confidence': 'medium',
+                        'prop_factor': 'rbi_streak'
+                    })
+                
+                # Slump analysis (bet against)
+                recent_avg = sum(float(g.get('stat', {}).get('avg', 0)) for g in recent_games[:5]) / 5
+                season_avg = float(player_info['season_stats'].get('avg', 0.250))
+                
+                if recent_avg < season_avg - 0.050:  # Significant slump
+                    streak_props.append({
+                        'game_id': game['game_id'],
+                        'bet_type': 'player_hits_under',
+                        'player': player_name,
+                        'prop_line': '1.5 hits',
+                        'reason': f"{player_name} in slump: {recent_avg:.3f} avg in last 5 vs {season_avg:.3f} season",
+                        'confidence': 'medium',
+                        'prop_factor': 'cold_streak'
+                    })
+        
+        return streak_props
+
+    def analyze_run_lines(self, games_df):
+        """Analyze MLB run line (+/-1.5) betting opportunities"""
+        runline_recommendations = []
+        
+        # Enhanced team performance for run lines
+        strong_offenses = ['Los Angeles Dodgers', 'Atlanta Braves', 'Houston Astros', 'New York Yankees']
+        weak_offenses = ['Miami Marlins', 'Oakland Athletics', 'Detroit Tigers', 'Chicago White Sox']
+        strong_pitching = ['Cleveland Guardians', 'Tampa Bay Rays', 'New York Mets', 'San Francisco Giants']
+        
+        for _, game in games_df.iterrows():
+            away_team = game['away_team']
+            home_team = game['home_team']
+            game_id = game['game_id']
+            
+            # Strong offense vs weak pitching - take the run line
+            if away_team in strong_offenses and home_team not in strong_pitching:
+                runline_recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'away_runline',
+                    'line': '-1.5',
+                    'reason': f"{away_team} strong offense should win by multiple runs",
+                    'confidence': 'medium',
+                    'runline_factor': 'offense_vs_weak_pitching'
+                })
+            elif home_team in strong_offenses and away_team not in strong_pitching:
+                runline_recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'home_runline',
+                    'line': '-1.5',
+                    'reason': f"{home_team} strong offense should win by multiple runs",
+                    'confidence': 'medium',
+                    'runline_factor': 'offense_vs_weak_pitching'
+                })
+            
+            # Weak offense vs strong pitching - take the + run line
+            elif away_team in weak_offenses and home_team in strong_pitching:
+                runline_recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'home_runline',
+                    'line': '-1.5',
+                    'reason': f"{home_team} strong pitching vs {away_team} weak offense",
+                    'confidence': 'medium',
+                    'runline_factor': 'pitching_vs_weak_offense'
+                })
+            elif home_team in weak_offenses and away_team in strong_pitching:
+                runline_recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'away_runline',
+                    'line': '-1.5',
+                    'reason': f"{away_team} strong pitching vs {home_team} weak offense",
+                    'confidence': 'medium',
+                    'runline_factor': 'pitching_vs_weak_offense'
+                })
+        
+        return runline_recommendations
+
+    def analyze_first_five_innings(self, games_df):
+        """Analyze first 5 innings (F5) betting - starter vs starter only"""
+        f5_recommendations = []
+        
+        # Get starting pitcher info
+        pitchers = self.data_collector.get_starting_pitchers(games_df)
+        
+        # Elite starters for F5 analysis
+        elite_starters = ['Gerrit Cole', 'Shane Bieber', 'Walker Buehler', 'Jacob deGrom']
+        
+        for _, game in games_df.iterrows():
+            game_id = game['game_id']
+            away_team = game['away_team']
+            home_team = game['home_team']
+            
+            if game_id in pitchers:
+                away_pitcher = pitchers[game_id].get('away_pitcher')
+                home_pitcher = pitchers[game_id].get('home_pitcher')
+                
+                if away_pitcher and home_pitcher:
+                    away_name = away_pitcher.get('fullName', 'Unknown')
+                    home_name = home_pitcher.get('fullName', 'Unknown')
+                    
+                    # Elite pitcher advantage in F5
+                    if away_name in elite_starters and home_name not in elite_starters:
+                        f5_recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'f5_away_ml',
+                            'reason': f"F5: Elite starter {away_name} advantage",
+                            'confidence': 'high',
+                            'f5_factor': 'elite_starter_advantage'
+                        })
+                        f5_recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'f5_under',
+                            'reason': f"F5 Under: {away_name} should dominate early",
+                            'confidence': 'medium',
+                            'f5_factor': 'elite_pitching'
+                        })
+                    elif home_name in elite_starters and away_name not in elite_starters:
+                        f5_recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'f5_home_ml',
+                            'reason': f"F5: Elite starter {home_name} advantage",
+                            'confidence': 'high',
+                            'f5_factor': 'elite_starter_advantage'
+                        })
+                        f5_recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'f5_under',
+                            'reason': f"F5 Under: {home_name} should dominate early",
+                            'confidence': 'medium',
+                            'f5_factor': 'elite_pitching'
+                        })
+        
+        return f5_recommendations
+
+    def analyze_bullpen_matchups(self, games_df):
+        """Analyze bullpen strength for late-game betting opportunities"""
+        bullpen_recommendations = []
+        
+        # Get bullpen analysis
+        bullpen_data = self.data_collector.get_bullpen_analysis(games_df)
+        
+        for _, game in games_df.iterrows():
+            away_team = game['away_team']
+            home_team = game['home_team']
+            game_id = game['game_id']
+            
+            away_bullpen = bullpen_data.get(away_team, {})
+            home_bullpen = bullpen_data.get(home_team, {})
+            
+            # Elite bullpen vs weak bullpen
+            if away_bullpen.get('strength') == 'elite' and home_bullpen.get('strength') == 'weak':
+                bullpen_recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'away_team_ml',
+                    'reason': f"{away_team} elite bullpen vs {home_team} weak bullpen - late game advantage",
+                    'confidence': 'medium',
+                    'bullpen_factor': 'elite_vs_weak'
+                })
+            elif home_bullpen.get('strength') == 'elite' and away_bullpen.get('strength') == 'weak':
+                bullpen_recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'home_team_ml',
+                    'reason': f"{home_team} elite bullpen vs {away_team} weak bullpen - late game advantage",
+                    'confidence': 'medium',
+                    'bullpen_factor': 'elite_vs_weak'
+                })
+            
+            # Both weak bullpens = more runs late
+            elif away_bullpen.get('strength') == 'weak' and home_bullpen.get('strength') == 'weak':
+                bullpen_recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'over_total',
+                    'reason': f"Both teams have weak bullpens - expect late-game scoring",
+                    'confidence': 'medium',
+                    'bullpen_factor': 'both_weak'
+                })
+            
+            # Both elite bullpens = fewer late runs
+            elif away_bullpen.get('strength') == 'elite' and home_bullpen.get('strength') == 'elite':
+                bullpen_recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'under_total',
+                    'reason': f"Both teams have elite bullpens - limited late-game scoring",
+                    'confidence': 'medium',
+                    'bullpen_factor': 'both_elite'
+                })
+        
+        return bullpen_recommendations
+    
+    def analyze_venue_factors(self, games_df, weather_data):
+        """Analyze how venue characteristics affect betting"""
+        venue_recommendations = []
+        
+        # Detailed venue characteristics
+        venue_factors = {
+            'Coors Field': {
+                'altitude': 5280,
+                'run_factor': 1.25,
+                'hr_factor': 1.35,
+                'favors': 'offense',
+                'key_factors': ['thin_air', 'large_foul_territory']
+            },
+            'Fenway Park': {
+                'green_monster': 310,
+                'run_factor': 1.05,
+                'hr_factor': 0.95,
+                'favors': 'doubles',
+                'key_factors': ['short_left_field', 'tall_wall']
+            },
+            'Yankee Stadium': {
+                'short_porch': 314,
+                'run_factor': 1.10,
+                'hr_factor': 1.15,
+                'favors': 'righties',
+                'key_factors': ['short_right_field', 'foul_territory']
+            },
+            'Petco Park': {
+                'dimensions': 'large',
+                'run_factor': 0.90,
+                'hr_factor': 0.85,
+                'favors': 'pitchers',
+                'key_factors': ['marine_layer', 'spacious_foul']
+            },
+            'Minute Maid Park': {
+                'left_field': 315,
+                'run_factor': 1.05,
+                'hr_factor': 1.10,
+                'favors': 'righties',
+                'key_factors': ['short_left_field', 'crawford_boxes']
+            }
+        }
+        
+        for _, game in games_df.iterrows():
+            venue = game.get('venue', '')
+            game_id = game['game_id']
+            
+            if venue in venue_factors:
+                factors = venue_factors[venue]
+                
+                # High-altitude effects (Coors Field)
+                if factors.get('altitude', 0) > 3000:
+                    venue_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'over_total',
+                        'reason': f"{venue} altitude ({factors['altitude']} ft) increases ball carry distance",
+                        'confidence': 'high',
+                        'venue_factor': 'altitude_boost'
+                    })
+                
+                # Short porch effects
+                if 'short_right_field' in factors.get('key_factors', []):
+                    venue_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'player_hr_props',
+                        'reason': f"{venue} short right field favors left-handed power hitters",
+                        'confidence': 'medium',
+                        'venue_factor': 'short_porch'
+                    })
+                
+                # Pitcher-friendly parks
+                if factors.get('favors') == 'pitchers':
+                    venue_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'under_total',
+                        'reason': f"{venue} is pitcher-friendly with {factors.get('key_factors', [])}",
+                        'confidence': 'medium',
+                        'venue_factor': 'pitcher_park'
+                    })
+        
+        return venue_recommendations
+
+    def analyze_advanced_pitcher_models(self, games_df):
+        """Advanced pitcher analysis with multiple models and metrics"""
+        pitcher_recommendations = []
+        
+        # Get pitcher data
+        pitcher_data = self.data_collector.get_pitcher_props_data(games_df)
+        
+        for pitcher_name, pitcher_info in pitcher_data.items():
+            stats = pitcher_info['season_stats']
+            recent_games = pitcher_info.get('recent_games', [])
+            game_id = pitcher_info['game_id']
+            tier = pitcher_info.get('tier', 'unknown')
+            throws = pitcher_info.get('throws', 'R')
+            
+            # Calculate advanced metrics
+            games_started = max(float(stats.get('gamesStarted', 1)), 1)
+            innings_pitched = float(stats.get('inningsPitched', 0))
+            
+            if innings_pitched > 20:  # Minimum sample size
+                
+                # === STRIKEOUT MODEL ===
+                strikeouts = float(stats.get('strikeOuts', 0))
+                k_per_9 = (strikeouts / innings_pitched) * 9
+                k_rate = strikeouts / max(float(stats.get('battersFaced', 1)), 1)
+                
+                # Recent K trend
+                recent_k_rate = 0
+                if recent_games:
+                    recent_strikeouts = sum(float(g.get('stat', {}).get('strikeOuts', 0)) for g in recent_games[:3])
+                    recent_innings = sum(float(g.get('stat', {}).get('inningsPitched', 0)) for g in recent_games[:3])
+                    if recent_innings > 0:
+                        recent_k_rate = (recent_strikeouts / recent_innings) * 9
+                
+                # Strikeout prop analysis
+                if k_per_9 >= 9.0 or (k_per_9 >= 8.0 and recent_k_rate > k_per_9):
+                    confidence = 'high' if k_per_9 >= 10.5 else 'medium'
+                    reason = f"{pitcher_name} K model: {k_per_9:.1f} K/9, {k_rate:.3f} K rate"
+                    
+                    if recent_k_rate > k_per_9 + 1.0:
+                        reason += f", trending up ({recent_k_rate:.1f} in last 3)"
+                    
+                    if tier == 'ace':
+                        reason += ", elite strikeout pitcher"
+                    
+                    pitcher_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_strikeouts_over',
+                        'player': pitcher_name,
+                        'prop_line': f'{max(6.5, k_per_9 - 1.5):.1f} strikeouts',
+                        'reason': reason,
+                        'confidence': confidence,
+                        'model': 'strikeout_rate',
+                        'k_per_9': k_per_9
+                    })
+                
+                # === WHIP MODEL ===
+                walks = float(stats.get('baseOnBalls', 0))
+                hits_allowed = float(stats.get('hits', 0))
+                whip = (walks + hits_allowed) / innings_pitched
+                
+                # WHIP-based hit props
+                if whip <= 1.10:  # Elite WHIP
+                    expected_hits = (hits_allowed / innings_pitched) * 6.0  # Expect 6 IP
+                    
+                    pitcher_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_hits_allowed_under',
+                        'player': pitcher_name,
+                        'prop_line': f'{expected_hits + 0.5:.1f} hits allowed',
+                        'reason': f"{pitcher_name} WHIP model: {whip:.2f} WHIP, elite hit prevention",
+                        'confidence': 'high',
+                        'model': 'whip_analysis',
+                        'whip': whip
+                    })
+                
+                # === CONTROL MODEL ===
+                bb_per_9 = (walks / innings_pitched) * 9
+                walk_rate = walks / max(float(stats.get('battersFaced', 1)), 1)
+                
+                if bb_per_9 <= 2.5:  # Excellent control
+                    pitcher_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_walks_under',
+                        'player': pitcher_name,
+                        'prop_line': f'{bb_per_9 / 2:.1f} walks',
+                        'reason': f"{pitcher_name} control model: {bb_per_9:.1f} BB/9, excellent command",
+                        'confidence': 'medium',
+                        'model': 'control_rate',
+                        'bb_per_9': bb_per_9
+                    })
+                elif bb_per_9 >= 4.0:  # Poor control
+                    pitcher_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_walks_over',
+                        'player': pitcher_name,
+                        'prop_line': f'{bb_per_9 / 2.5:.1f} walks',
+                        'reason': f"{pitcher_name} control issues: {bb_per_9:.1f} BB/9, expect free passes",
+                        'confidence': 'medium',
+                        'model': 'control_problems',
+                        'bb_per_9': bb_per_9
+                    })
+                
+                # === HOME RUN MODEL ===
+                home_runs_allowed = float(stats.get('homeRuns', 0))
+                hr_per_9 = (home_runs_allowed / innings_pitched) * 9
+                hr_rate = home_runs_allowed / max(float(stats.get('battersFaced', 1)), 1)
+                
+                if hr_per_9 >= 1.5:  # Home run prone
+                    pitcher_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'opposing_team_hr_props',
+                        'player': pitcher_name,
+                        'prop_line': 'team total home runs over',
+                        'reason': f"{pitcher_name} HR model: {hr_per_9:.1f} HR/9, allows long balls",
+                        'confidence': 'medium',
+                        'model': 'home_run_allowed',
+                        'hr_per_9': hr_per_9
+                    })
+                elif hr_per_9 <= 0.8:  # Excellent HR prevention
+                    pitcher_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'opposing_team_hr_props',
+                        'player': pitcher_name,
+                        'prop_line': 'team total home runs under',
+                        'reason': f"{pitcher_name} HR prevention: {hr_per_9:.1f} HR/9, keeps ball in park",
+                        'confidence': 'medium',
+                        'model': 'hr_prevention',
+                        'hr_per_9': hr_per_9
+                    })
+                
+                # === INNINGS PITCHED MODEL ===
+                avg_innings = innings_pitched / games_started
+                
+                # Recent workload analysis
+                recent_innings_avg = 0
+                if len(recent_games) >= 3:
+                    recent_total_innings = sum(float(g.get('stat', {}).get('inningsPitched', 0)) for g in recent_games[:3])
+                    recent_innings_avg = recent_total_innings / 3
+                
+                if avg_innings >= 6.0 or (tier == 'ace' and avg_innings >= 5.5):
+                    confidence = 'high' if avg_innings >= 6.5 else 'medium'
+                    reason = f"{pitcher_name} durability: {avg_innings:.1f} IP/start"
+                    
+                    if recent_innings_avg > avg_innings:
+                        reason += f", trending up ({recent_innings_avg:.1f} recent)"
+                    
+                    pitcher_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_innings_over',
+                        'player': pitcher_name,
+                        'prop_line': f'{max(5.5, avg_innings - 0.5):.1f} innings pitched',
+                        'reason': reason,
+                        'confidence': confidence,
+                        'model': 'innings_durability',
+                        'avg_innings': avg_innings
+                    })
+                
+                # === QUALITY START MODEL ===
+                # Quality start = 6+ IP, 3 or fewer earned runs
+                era = float(stats.get('era', 0))
+                if avg_innings >= 6.0 and era <= 3.50:
+                    pitcher_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_quality_start',
+                        'player': pitcher_name,
+                        'prop_line': 'quality start (6+ IP, ≤3 ER)',
+                        'reason': f"{pitcher_name} QS model: {avg_innings:.1f} IP/start, {era:.2f} ERA",
+                        'confidence': 'medium',
+                        'model': 'quality_start',
+                        'era': era
+                    })
+                
+                # === FIRST INNING MODEL ===
+                # Some pitchers struggle early
+                if recent_games:
+                    first_inning_earned_runs = 0
+                    first_inning_games = 0
+                    
+                    for game in recent_games[:5]:  # Last 5 starts
+                        # This would need inning-by-inning data in real implementation
+                        # For now, using simplified logic
+                        first_inning_games += 1
+                    
+                    # Simplified first inning analysis
+                    if era <= 3.00 and tier in ['ace', 'tier1']:
+                        pitcher_recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'first_inning_no_runs',
+                            'player': pitcher_name,
+                            'prop_line': 'first inning no runs allowed',
+                            'reason': f"{pitcher_name} 1st inning model: elite pitcher, strong starts",
+                            'confidence': 'medium',
+                            'model': 'first_inning_dominance'
+                        })
+        
+        return pitcher_recommendations
+
+    def analyze_pitcher_fatigue_model(self, games_df):
+        """Analyze pitcher fatigue and workload for late-season betting"""
+        fatigue_recommendations = []
+        
+        pitcher_data = self.data_collector.get_pitcher_props_data(games_df)
+        
+        for pitcher_name, pitcher_info in pitcher_data.items():
+            stats = pitcher_info['season_stats']
+            recent_games = pitcher_info.get('recent_games', [])
+            game_id = pitcher_info['game_id']
+            
+            innings_pitched = float(stats.get('inningsPitched', 0))
+            games_started = max(float(stats.get('gamesStarted', 1)), 1)
+            
+            # Workload analysis
+            if innings_pitched > 150:  # Heavy workload threshold
+                
+                # Recent performance trend
+                if len(recent_games) >= 4:
+                    recent_eras = []
+                    for game in recent_games[:4]:
+                        er = float(game.get('stat', {}).get('earnedRuns', 0))
+                        ip = float(game.get('stat', {}).get('inningsPitched', 1))
+                        game_era = (er / ip) * 9 if ip > 0 else 0
+                        recent_eras.append(game_era)
+                    
+                    recent_era = sum(recent_eras) / len(recent_eras)
+                    season_era = float(stats.get('era', 0))
+                    
+                    # Fatigue indicators
+                    if recent_era > season_era + 1.0:  # Recent struggle
+                        fatigue_recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'opposing_team_runs_over',
+                            'player': pitcher_name,
+                            'prop_line': 'opposing team runs',
+                            'reason': f"{pitcher_name} fatigue model: {innings_pitched:.1f} IP, recent ERA {recent_era:.2f} vs season {season_era:.2f}",
+                            'confidence': 'medium',
+                            'model': 'fatigue_analysis'
+                        })
+                    
+                    # Innings decline
+                    recent_innings = [float(g.get('stat', {}).get('inningsPitched', 0)) for g in recent_games[:3]]
+                    avg_recent_innings = sum(recent_innings) / len(recent_innings)
+                    season_avg_innings = innings_pitched / games_started
+                    
+                    if avg_recent_innings < season_avg_innings - 0.5:
+                        fatigue_recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'pitcher_innings_under',
+                            'player': pitcher_name,
+                            'prop_line': f'{season_avg_innings - 0.5:.1f} innings',
+                            'reason': f"{pitcher_name} workload concern: recent {avg_recent_innings:.1f} IP vs season {season_avg_innings:.1f}",
+                            'confidence': 'medium',
+                            'model': 'innings_decline'
+                        })
+        
+        return fatigue_recommendations
+
+    def analyze_pitcher_platoon_splits(self, games_df):
+        """Analyze how pitchers perform against opposite-handed hitters"""
+        platoon_recommendations = []
+        
+        # This would ideally use real platoon split data
+        # For demonstration, using known tendencies
+        
+        pitcher_platoon_data = {
+            # Pitchers who struggle against opposite-handed hitters
+            'opposite_hand_vulnerable': [
+                'Carlos Rodon',  # LHP vulnerable to RHH
+                'Julio Urias',   # LHP vulnerable to RHH
+                'Framber Valdez' # LHP vulnerable to RHH
+            ],
+            # Pitchers dominant against opposite-handed hitters
+            'opposite_hand_dominant': [
+                'Gerrit Cole',   # RHP dominant vs LHH
+                'Spencer Strider', # RHP dominant vs LHH
+                'Shane Bieber'   # RHP dominant vs LHH
+            ]
+        }
+        
+        pitcher_data = self.data_collector.get_pitcher_props_data(games_df)
+        player_data = self.data_collector.get_player_stats_for_props(games_df)
+        
+        for pitcher_name, pitcher_info in pitcher_data.items():
+            game_id = pitcher_info['game_id']
+            throws = pitcher_info.get('throws', 'R')
+            
+            # Find opposing hitters in this game
+            opposing_hitters = []
+            for player_name, player_info in player_data.items():
+                if player_info['games_today']:
+                    player_game = player_info['games_today'][0]
+                    if player_game['game_id'] == game_id:
+                        # Check if this player is facing our pitcher
+                        player_team = player_info['team']
+                        pitcher_team = pitcher_info['team']
+                        
+                        if player_team != pitcher_team:  # Opposing team
+                            opposing_hitters.append({
+                                'name': player_name,
+                                'handedness': player_info.get('handedness', 'R'),
+                                'power': float(player_info['season_stats'].get('homeRuns', 0))
+                            })
+            
+            # Analyze platoon matchups
+            if pitcher_name in pitcher_platoon_data['opposite_hand_vulnerable']:
+                # Count opposite-handed power hitters
+                opposite_power_hitters = [
+                    h for h in opposing_hitters 
+                    if ((throws == 'L' and h['handedness'] in ['R', 'S']) or 
+                        (throws == 'R' and h['handedness'] in ['L', 'S'])) 
+                    and h['power'] >= 15
+                ]
+                
+                if len(opposite_power_hitters) >= 2:
+                    platoon_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_hits_allowed_over',
+                        'player': pitcher_name,
+                        'prop_line': 'hits allowed',
+                        'reason': f"{pitcher_name} ({throws}HP) faces {len(opposite_power_hitters)} opposite-handed power hitters",
+                        'confidence': 'medium',
+                        'model': 'platoon_vulnerability'
+                    })
+            
+            elif pitcher_name in pitcher_platoon_data['opposite_hand_dominant']:
+                # This pitcher dominates opposite-handed hitters
+                same_hand_hitters = [
+                    h for h in opposing_hitters 
+                    if ((throws == 'L' and h['handedness'] == 'L') or 
+                        (throws == 'R' and h['handedness'] == 'R'))
+                ]
+                
+                if len(same_hand_hitters) >= 3:  # Facing mostly same-handed hitters
+                    platoon_recommendations.append({
+                        'game_id': game_id,
+                        'bet_type': 'pitcher_strikeouts_over',
+                        'player': pitcher_name,
+                        'prop_line': 'strikeouts',
+                        'reason': f"{pitcher_name} platoon advantage: facing {len(same_hand_hitters)} same-handed hitters",
+                        'confidence': 'medium',
+                        'model': 'platoon_dominance'
+                    })
+        
+        return platoon_recommendations
+
+    def run_comprehensive_analysis(self):
+        """Run complete MLB betting analysis with all models"""
+        print("=" * 60)
+        print("🏈 COMPREHENSIVE MLB BETTING ANALYSIS ENGINE")
+        print("=" * 60)
+        
+        # Get all data
+        data_results = self.data_collector.test_all_apis()
+        
+        if data_results['mlb_games'] is None or data_results['mlb_games'].empty:
+            print("❌ No MLB games found for today")
+            return
+            
+        games_df = data_results['mlb_games']
+        odds_data = data_results['odds_data']
+        weather_data = data_results['weather_data']
+        
+        print(f"\n📊 Analyzing {len(games_df)} games today...")
+        
+        # Run all analysis models
+        all_recommendations = []
+        
+        # Core betting analysis
+        print("🔥 Running core betting models...")
+        if weather_data:
+            weather_bets = self.analyze_weather_impact(weather_data)
+            all_recommendations.extend(weather_bets)
+        
+        team_bets = self.analyze_team_trends(games_df)
+        all_recommendations.extend(team_bets)
+        
+        pitcher_bets = self.analyze_starting_pitchers(games_df)
+        all_recommendations.extend(pitcher_bets)
+        
+        # Advanced models
+        print("⚾ Running advanced models...")
+        player_props = self.analyze_player_props(games_df)
+        all_recommendations.extend(player_props)
+        
+        matchup_props = self.analyze_advanced_prop_matchups(games_df)
+        all_recommendations.extend(matchup_props)
+        
+        situational_props = self.analyze_situational_props(games_df, weather_data)
+        all_recommendations.extend(situational_props)
+        
+        streak_props = self.analyze_streak_props(games_df)
+        all_recommendations.extend(streak_props)
+        
+        venue_bets = self.analyze_venue_factors(games_df, weather_data)
+        all_recommendations.extend(venue_bets)
+        
+        # ADVANCED PITCHER MODELS
+        print("🎯 Running advanced pitcher models...")
+        pitcher_models = self.analyze_advanced_pitcher_models(games_df)
+        all_recommendations.extend(pitcher_models)
+        
+        fatigue_models = self.analyze_pitcher_fatigue_model(games_df)
+        all_recommendations.extend(fatigue_models)
+        
+        platoon_models = self.analyze_pitcher_platoon_splits(games_df)
+        all_recommendations.extend(platoon_models)
+        
+        # Display results by category
+        self.display_advanced_results(all_recommendations, games_df)
+        
+        return all_recommendations
+
+    def display_advanced_results(self, recommendations, games_df):
+        """Display betting recommendations organized by advanced categories"""
+        
+        print("\n" + "=" * 60)
+        print("🚀 ADVANCED BETTING RECOMMENDATIONS")
+        print("=" * 60)
+        
+        # Categorize recommendations
+        categories = {
+            'Elite Pitcher Models': [],
+            'Pitcher Fatigue & Workload': [],
+            'Platoon Matchups': [],
+            'Advanced Player Props': [],
+            'Weather & Venue Impact': [],
+            'Streak & Situation Analysis': [],
+            'Team & Pitcher Trends': []
+        }
+        
+        for rec in recommendations:
+            model = rec.get('model', rec.get('prop_factor', rec.get('trend_factor', 'general')))
+            
+            if model in ['strikeout_rate', 'whip_analysis', 'control_rate', 'home_run_allowed', 
+                        'innings_durability', 'quality_start', 'first_inning_dominance']:
+                categories['Elite Pitcher Models'].append(rec)
+            elif model in ['fatigue_analysis', 'innings_decline']:
+                categories['Pitcher Fatigue & Workload'].append(rec)
+            elif model in ['platoon_vulnerability', 'platoon_dominance']:
+                categories['Platoon Matchups'].append(rec)
+            elif model in ['hitting_consistency', 'power_analysis', 'rbi_consistency', 
+                          'extra_base_power', 'run_scoring', 'speed_analysis']:
+                categories['Advanced Player Props'].append(rec)
+            elif model in ['weather_boost', 'venue_boost', 'altitude_boost', 'short_porch', 'pitcher_park']:
+                categories['Weather & Venue Impact'].append(rec)
+            elif model in ['hot_streak', 'situational_advantage', 'slump_bet_against']:
+                categories['Streak & Situation Analysis'].append(rec)
+            else:
+                categories['Team & Pitcher Trends'].append(rec)
+        
+        total_bets = len(recommendations)
+        
+        for category, bets in categories.items():
+            if bets:
+                print(f"\n🎯 {category} ({len(bets)} opportunities)")
+                print("-" * 50)
+                
+                for i, bet in enumerate(bets[:8], 1):  # Limit display
+                    confidence_emoji = "🔥" if bet['confidence'] == 'high' else "⚡" if bet['confidence'] == 'medium' else "💡"
+                    
+                    player_info = f" - {bet['player']}" if 'player' in bet else ""
+                    prop_line = f" ({bet.get('prop_line', '')})" if 'prop_line' in bet else ""
+                    
+                    print(f"{i}. {confidence_emoji} {bet['bet_type'].upper()}{player_info}{prop_line}")
+                    print(f"   💭 {bet['reason']}")
+                    
+                    # Show advanced metrics if available
+                    if 'k_per_9' in bet:
+                        print(f"   📊 K/9: {bet['k_per_9']:.1f}")
+                    if 'whip' in bet:
+                        print(f"   📊 WHIP: {bet['whip']:.2f}")
+                    if 'bb_per_9' in bet:
+                        print(f"   📊 BB/9: {bet['bb_per_9']:.1f}")
+                    if 'hr_per_9' in bet:
+                        print(f"   📊 HR/9: {bet['hr_per_9']:.1f}")
+                    if 'avg_innings' in bet:
+                        print(f"   📊 Avg IP: {bet['avg_innings']:.1f}")
+                    
+                    print()
+        
+        # Summary statistics
+        print("=" * 60)
+        print("📈 ANALYSIS SUMMARY")
+        print("=" * 60)
+        
+        high_conf = len([r for r in recommendations if r['confidence'] == 'high'])
+        medium_conf = len([r for r in recommendations if r['confidence'] == 'medium'])
+        low_conf = len([r for r in recommendations if r['confidence'] == 'low'])
+        
+        print(f"🎯 Total Betting Opportunities: {total_bets}")
+        print(f"🔥 High Confidence: {high_conf}")
+        print(f"⚡ Medium Confidence: {medium_conf}")
+        print(f"💡 Low Confidence: {low_conf}")
+        print(f"📊 Games Analyzed: {len(games_df)}")
+        
+        # Model breakdown
+        model_counts = {}
+        for rec in recommendations:
+            model = rec.get('model', rec.get('prop_factor', 'other'))
+            model_counts[model] = model_counts.get(model, 0) + 1
+        
+        print(f"\n🧠 Advanced Models Utilized:")
+        for model, count in sorted(model_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+            print(f"   • {model.replace('_', ' ').title()}: {count} bets")
+        
+        print(f"\n💡 Strategy Tips:")
+        print(f"   • Focus on 🔥 high confidence pitcher model bets")
+        print(f"   • Weather and venue factors provide edge in totals")
+        print(f"   • Platoon matchups offer value in props")
+        print(f"   • Fatigue models identify late-season value")
+        print(f"   • Combine multiple models for parlays")
+        
+        print("=" * 60)
+        """Analyze ballpark-specific factors with historical correlations"""
+        recommendations = []
+        
+        # Enhanced ballpark characteristics with historical data
+        park_factors = {
+            'hitter_friendly': ['Coors Field', 'Fenway Park', 'Yankee Stadium', 'Globe Life Field'],
+            'pitcher_friendly': ['Petco Park', 'Marlins Park', 'T-Mobile Park', 'Oakland Coliseum'],
+            'weather_dependent': ['Wrigley Field', 'Fenway Park', 'Oakland Coliseum']
+        }
+        
+        for _, game in games_df.iterrows():
+            venue = game['venue']
+            game_id = game['game_id']
+            
+            # Get weather for this game
+            game_weather = None
+            if weather_data:
+                game_weather = next((w for w in weather_data if w['game_id'] == game_id), None)
+            
+            # Hitter-friendly parks with historical context
+            if venue in park_factors['hitter_friendly']:
+                confidence = 'high' if venue == 'Coors Field' else 'medium'
+                
+                # Get historical correlation if available
+                historical_data = self.data_collector.get_historical_weather_correlations(venue, 'temperature_correlations')
+                
+                reason = f"{venue} is hitter-friendly ballpark"
+                if historical_data:
+                    reason += f" (historical over rate: {historical_data.get('over_rate', 0)*100:.0f}%)"
+                
+                recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'over_total',
+                    'reason': reason,
+                    'confidence': confidence,
+                    'venue_factor': 'hitter_friendly'
+                })
+            
+            # Pitcher-friendly parks
+            elif venue in park_factors['pitcher_friendly']:
+                recommendations.append({
+                    'game_id': game_id,
+                    'bet_type': 'under_total',
+                    'reason': f"{venue} is pitcher-friendly ballpark",
+                    'confidence': 'medium',
+                    'venue_factor': 'pitcher_friendly'
+                })
+            
+            # Weather-dependent parks with enhanced analysis
+            if venue in park_factors['weather_dependent'] and game_weather:
+                weather = game_weather['weather']
+                
+                if venue == 'Wrigley Field':
+                    # Enhanced Wrigley wind analysis with historical data
+                    historical_wind = self.data_collector.get_historical_weather_correlations(venue, 'wind_correlations')
+                    
+                    if 'N' in weather['wind_direction'] or 'E' in weather['wind_direction']:
+                        reason = f"Wrigley Field: Wind from {weather['wind_direction']} blows in from lake"
+                        if historical_wind and 'north_wind' in historical_wind:
+                            reason += f" (historical under rate: {(1-historical_wind['north_wind']['over_rate'])*100:.0f}%)"
+                        
+                        recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'under_total',
+                            'reason': reason,
+                            'confidence': 'medium',
+                            'venue_factor': 'wrigley_wind'
+                        })
+                    elif 'S' in weather['wind_direction']:
+                        reason = f"Wrigley Field: South wind blows out to lake"
+                        if historical_wind and 'south_wind' in historical_wind:
+                            reason += f" (historical over rate: {historical_wind['south_wind']['over_rate']*100:.0f}%)"
+                            
+                        recommendations.append({
+                            'game_id': game_id,
+                            'bet_type': 'over_total',
+                            'reason': reason,
+                            'confidence': 'medium',
+                            'venue_factor': 'wrigley_wind'
+                        })
+        
+        return recommendations
+    
+    def combine_analysis(self, games_df, weather_data, odds_data):
+        """Combine all analysis factors for final recommendations"""
+        all_recommendations = []
+        
+        # Get recommendations from each analysis
+        weather_recs = self.analyze_weather_impact(weather_data) if weather_data else []
+        trend_recs = self.analyze_team_trends(games_df) if not games_df.empty else []
+        venue_recs = self.analyze_venue_factors(games_df, weather_data) if not games_df.empty else []
+        pitcher_recs = self.analyze_starting_pitchers(games_df) if not games_df.empty else []
+        
+        # NEW: Get enhanced betting options
+        prop_recs = self.analyze_player_props(games_df) if not games_df.empty else []
+        advanced_props = self.analyze_advanced_prop_matchups(games_df) if not games_df.empty else []
+        situational_props = self.analyze_situational_props(games_df, weather_data) if not games_df.empty else []
+        streak_props = self.analyze_streak_props(games_df) if not games_df.empty else []
+        runline_recs = self.analyze_run_lines(games_df) if not games_df.empty else []
+        f5_recs = self.analyze_first_five_innings(games_df) if not games_df.empty else []
+        bullpen_recs = self.analyze_bullpen_matchups(games_df) if not games_df.empty else []
+        
+        # Get line movement alerts
+        line_alerts = self.data_collector.track_line_movement(odds_data) if odds_data is not None else []
+        
+        # Combine all recommendations
+        all_recommendations.extend(weather_recs)
+        all_recommendations.extend(trend_recs)
+        all_recommendations.extend(venue_recs)
+        all_recommendations.extend(pitcher_recs)
+        all_recommendations.extend(prop_recs)
+        all_recommendations.extend(advanced_props)
+        all_recommendations.extend(situational_props)
+        all_recommendations.extend(streak_props)
+        all_recommendations.extend(runline_recs)
+        all_recommendations.extend(f5_recs)
+        all_recommendations.extend(bullpen_recs)
+        
+        # Group recommendations by game and bet type
+        game_analysis = {}
+        
+        for rec in all_recommendations:
+            game_id = rec['game_id']
+            bet_type = rec['bet_type']
+            
+            if game_id not in game_analysis:
+                game_analysis[game_id] = {}
+            
+            if bet_type not in game_analysis[game_id]:
+                game_analysis[game_id][bet_type] = {
+                    'reasons': [],
+                    'confidence_scores': [],
+                    'factors': []
+                }
+            
+            game_analysis[game_id][bet_type]['reasons'].append(rec['reason'])
+            game_analysis[game_id][bet_type]['confidence_scores'].append(rec['confidence'])
+            game_analysis[game_id][bet_type]['factors'].append(
+                rec.get('weather_factor') or 
+                rec.get('trend_factor') or 
+                rec.get('venue_factor') or 
+                rec.get('pitcher_factor') or
+                rec.get('prop_factor') or
+                rec.get('runline_factor') or
+                rec.get('f5_factor') or
+                rec.get('bullpen_factor')
+            )
+            
+            # Add player info for props
+            if 'player' in rec:
+                game_analysis[game_id][bet_type]['player'] = rec['player']
+            if 'prop_line' in rec:
+                game_analysis[game_id][bet_type]['prop_line'] = rec['prop_line']
+            if 'line' in rec:
+                game_analysis[game_id][bet_type]['line'] = rec['line']
+        
+        # Calculate final recommendations with confidence scores
+        final_recommendations = []
+        
+        for game_id, bets in game_analysis.items():
+            for bet_type, data in bets.items():
+                # Calculate overall confidence
+                confidence_weights = {'high': 3, 'medium': 2, 'low': 1}
+                total_weight = sum(confidence_weights[conf] for conf in data['confidence_scores'])
+                num_factors = len(data['reasons'])
+                
+                avg_confidence = total_weight / num_factors if num_factors > 0 else 0
+                
+                if avg_confidence >= 2.5:
+                    final_confidence = 'high'
+                elif avg_confidence >= 1.5:
+                    final_confidence = 'medium'
+                else:
+                    final_confidence = 'low'
+                
+                # Boost confidence if multiple factors agree
+                if num_factors >= 3:
+                    if final_confidence == 'medium':
+                        final_confidence = 'high'
+                        avg_confidence += 0.5
+                
+                # Add line movement bonus
+                line_alert = next((alert for alert in line_alerts if alert['game_id'] == game_id), None)
+                line_movement_bonus = 0.2 if line_alert else 0
+                
+                # Only recommend if we have medium+ confidence or multiple factors
+                if final_confidence in ['high', 'medium'] or num_factors >= 2:
+                    rec_data = {
+                        'game_id': game_id,
+                        'bet_type': bet_type,
+                        'confidence': final_confidence,
+                        'num_factors': num_factors,
+                        'reasons': data['reasons'],
+                        'score': avg_confidence + line_movement_bonus,
+                        'line_alert': line_alert
+                    }
+                    
+                    # Add extra data for specific bet types
+                    if 'player' in data:
+                        rec_data['player'] = data['player']
+                    if 'prop_line' in data:
+                        rec_data['prop_line'] = data['prop_line']
+                    if 'line' in data:
+                        rec_data['line'] = data['line']
+                    
+                    final_recommendations.append(rec_data)
+        
+        # Sort by confidence score (highest first)
+        final_recommendations.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Separate prop recommendations for parlay building
+        prop_recommendations = [r for r in final_recommendations if 'player_' in r['bet_type']]
+        team_recommendations = [r for r in final_recommendations if 'player_' not in r['bet_type']]
+        
+        return final_recommendations, line_alerts, prop_recommendations
+
+    def build_parlay_suggestions(self, recommendations, prop_recommendations=None):
+        """Build enhanced parlay suggestions including Same Game Parlays (SGP)"""
+        parlays = []
+        
+        # Traditional multi-game parlays
+        high_conf_bets = [r for r in recommendations if r['confidence'] == 'high']
+        
+        if len(high_conf_bets) >= 2:
+            # 2-leg parlays
+            for i in range(len(high_conf_bets)):
+                for j in range(i + 1, len(high_conf_bets)):
+                    bet1 = high_conf_bets[i]
+                    bet2 = high_conf_bets[j]
+                    
+                    # Avoid same game parlays with conflicting bets for traditional parlays
+                    if bet1['game_id'] != bet2['game_id']:
+                        parlays.append({
+                            'legs': [bet1, bet2],
+                            'type': '2-leg parlay',
+                            'parlay_category': 'multi_game',
+                            'risk_level': 'medium',
+                            'expected_odds': '2.6/1',
+                            'reasoning': 'Two high-confidence individual bets from different games'
+                        })
+            
+            # 3-leg parlays (more aggressive)
+            if len(high_conf_bets) >= 3:
+                for i in range(len(high_conf_bets)):
+                    for j in range(i + 1, len(high_conf_bets)):
+                        for k in range(j + 1, len(high_conf_bets)):
+                            bet1, bet2, bet3 = high_conf_bets[i], high_conf_bets[j], high_conf_bets[k]
+                            
+                            # All different games
+                            games = {bet1['game_id'], bet2['game_id'], bet3['game_id']}
+                            if len(games) == 3:
+                                parlays.append({
+                                    'legs': [bet1, bet2, bet3],
+                                    'type': '3-leg parlay',
+                                    'parlay_category': 'multi_game',
+                                    'risk_level': 'high',
+                                    'expected_odds': '6/1',
+                                    'reasoning': 'Three high-confidence individual bets from different games'
+                                })
+        
+        # Same Game Parlays (SGP) - Modern betting favorite
+        if prop_recommendations:
+            all_recs = recommendations + prop_recommendations
+            
+            # Group by game for SGP analysis
+            games_dict = {}
+            for rec in all_recs:
+                game_id = rec['game_id']
+                if game_id not in games_dict:
+                    games_dict[game_id] = []
+                games_dict[game_id].append(rec)
+            
+            for game_id, game_recs in games_dict.items():
+                if len(game_recs) >= 2:
+                    # Look for correlated bets in same game
+                    game_bets = [r for r in game_recs if r['confidence'] in ['high', 'medium']]
+                    
+                    # SGP Strategy 1: Over total + player props
+                    over_bets = [r for r in game_bets if 'over' in r['bet_type']]
+                    player_bets = [r for r in game_bets if 'player_' in r['bet_type']]
+                    
+                    # Remove duplicates and limit to unique player props
+                    unique_players = {}
+                    for prop in player_bets:
+                        player_name = prop.get('player', 'Unknown')
+                        if player_name not in unique_players:
+                            unique_players[player_name] = prop
+                    
+                    unique_player_bets = list(unique_players.values())
+                    
+                    if over_bets and unique_player_bets:
+                        sgp_legs = over_bets[:1] + unique_player_bets[:2]  # 1 over + 2 unique props
+                        
+                        if len(sgp_legs) >= 2:
+                            parlays.append({
+                                'legs': sgp_legs,
+                                'type': f'{len(sgp_legs)}-leg SGP',
+                                'parlay_category': 'same_game',
+                                'risk_level': 'medium',
+                                'expected_odds': f'{2.5 * len(sgp_legs)}/1',
+                                'reasoning': 'Correlated SGP: High-scoring game + player performance'
+                            })
+                    
+                    # SGP Strategy 2: Team ML + their player props (fixed)
+                    ml_bets = [r for r in game_bets if '_ml' in r['bet_type']]
+                    if ml_bets and unique_player_bets:
+                        for ml_bet in ml_bets[:1]:  # Just one ML bet
+                            sgp_legs = [ml_bet] + unique_player_bets[:2]
+                            parlays.append({
+                                'legs': sgp_legs,
+                                'type': f'{len(sgp_legs)}-leg SGP',
+                                'parlay_category': 'same_game',
+                                'risk_level': 'high',
+                                'expected_odds': f'{3.5 * len(sgp_legs)}/1',
+                                'reasoning': 'SGP: Team win + their key players perform'
+                            })
+        
+        # Specialty parlays
+        
+        # "Pitcher's Duel" parlay - multiple unders
+        under_bets = [r for r in recommendations if 'under' in r['bet_type'] and r['confidence'] == 'high']
+        if len(under_bets) >= 2:
+            pitcher_duel = under_bets[:3]  # Max 3 games
+            parlays.append({
+                'legs': pitcher_duel,
+                'type': f'{len(pitcher_duel)}-leg Pitcher Duel',
+                'parlay_category': 'specialty',
+                'risk_level': 'medium',
+                'expected_odds': f'{2.8 * len(pitcher_duel)}/1',
+                'reasoning': 'Multiple strong pitching matchups = low-scoring games'
+            })
+        
+        # "Slugfest" parlay - multiple overs  
+        over_bets = [r for r in recommendations if 'over' in r['bet_type'] and r['confidence'] == 'high']
+        if len(over_bets) >= 2:
+            slugfest = over_bets[:3]  # Max 3 games
+            parlays.append({
+                'legs': slugfest,
+                'type': f'{len(slugfest)}-leg Slugfest',
+                'parlay_category': 'specialty',
+                'risk_level': 'medium',
+                'expected_odds': f'{2.8 * len(slugfest)}/1',
+                'reasoning': 'Multiple high-scoring game setups = offensive explosion'
+            })
+        
+        # "Favorites" parlay - ML favorites
+        ml_favs = [r for r in recommendations if '_ml' in r['bet_type'] and r['confidence'] == 'high']
+        if len(ml_favs) >= 2:
+            favorites = ml_favs[:4]  # Max 4 teams
+            parlays.append({
+                'legs': favorites,
+                'type': f'{len(favorites)}-leg Chalk',
+                'parlay_category': 'specialty', 
+                'risk_level': 'low',
+                'expected_odds': f'{1.8 * len(favorites)}/1',
+                'reasoning': 'High-confidence favorites - safer parlay with lower payout'
+            })
+        
+        # Sort parlays by category and risk level
+        category_order = {'specialty': 0, 'same_game': 1, 'multi_game': 2}
+        risk_order = {'low': 0, 'medium': 1, 'high': 2}
+        
+        parlays.sort(key=lambda x: (category_order.get(x['parlay_category'], 3), risk_order[x['risk_level']]))
+        
+        return parlays[:8]  # Top 8 parlays
+    
+    def get_daily_recommendations(self):
+        """Main function to get today's top betting recommendations"""
+        print("\n" + "=" * 60)
+        print("🎯 DAILY MLB BETTING ANALYSIS")
+        print("=" * 60)
+        
+        # Get all data
+        mlb_games = self.data_collector.get_todays_mlb_games()
+        odds_data = self.data_collector.get_mlb_odds()
+        weather_data = None
+        
+        if mlb_games is not None and not mlb_games.empty:
+            weather_data = self.data_collector.get_weather_for_todays_games(mlb_games)
+        
+        if mlb_games is None or mlb_games.empty:
+            print("❌ No games found for today")
+            return None
+        
+        # Run enhanced analysis
+        recommendations, line_alerts, prop_recommendations = self.combine_analysis(mlb_games, weather_data, odds_data)
+        
+        # Build enhanced parlay suggestions with props
+        parlays = self.build_parlay_suggestions(recommendations, prop_recommendations)
+        
+        # Display line movement alerts
+        if line_alerts:
+            print("\n🚨 LINE MOVEMENT ALERTS:")
+            print("-" * 40)
+            for alert in line_alerts[:3]:  # Top 3 alerts
+                # Find game by matching teams instead of game_id (different API formats)
+                matching_game = None
+                for _, game in mlb_games.iterrows():
+                    if alert['game_id'] in str(game['game_id']):
+                        matching_game = game
+                        break
+                
+                if matching_game is not None:
+                    print(f"⚠️  {matching_game['away_team']} @ {matching_game['home_team']}: {alert['message']}")
+                else:
+                    print(f"⚠️  Game {alert['game_id']}: {alert['message']}")
+        
+        # Separate recommendations by type
+        team_bets = [r for r in recommendations if 'player_' not in r['bet_type']]
+        player_props = [r for r in recommendations if 'player_' in r['bet_type']]
+        
+        # Display recommendations by category
+        print(f"\n📊 Found {len(recommendations)} total betting opportunities:")
+        
+        # Team-based bets
+        if team_bets:
+            print("\n🏆 TOP TEAM BETS (ML, Totals, Run Lines, F5):")
+            print("-" * 60)
+            
+            for i, rec in enumerate(team_bets[:10], 1):  # Top 10 team bets
+                game = mlb_games[mlb_games['game_id'] == rec['game_id']].iloc[0]
+                
+                confidence_emoji = "🔥" if rec['confidence'] == 'high' else "⚡" if rec['confidence'] == 'medium' else "💡"
+                
+                # Format bet type display
+                bet_display = rec['bet_type'].upper().replace('_', ' ')
+                if 'line' in rec:
+                    bet_display += f" ({rec['line']})"
+                
+                print(f"\n{i}. {confidence_emoji} {bet_display}")
+                print(f"   Game: {game['away_team']} @ {game['home_team']}")
+                print(f"   Venue: {game['venue']}")
+                print(f"   Confidence: {rec['confidence'].upper()} ({rec['score']:.1f}/3.0)")
+                print(f"   Factors: {rec['num_factors']} supporting factors")
+                
+                if rec.get('line_alert'):
+                    print(f"   🚨 Line Alert: {rec['line_alert']['message']}")
+                
+                print("   Reasons:")
+                for reason in rec['reasons']:
+                    print(f"   • {reason}")
+        
+        # Player props - enhanced categorization
+        if player_props:
+            print(f"\n🎯 ADVANCED PLAYER PROPS ({len(player_props)} opportunities):")
+            print("-" * 60)
+            
+            # Categorize props by type
+            hitting_props = [p for p in player_props if any(x in p['bet_type'] for x in ['hits', 'hr', 'rbi', 'runs', 'total_bases'])]
+            pitching_props = [p for p in player_props if 'pitcher_' in p['bet_type']]
+            situational_props = [p for p in player_props if p.get('prop_factor') in ['weather_boost', 'venue_boost', 'matchup_advantage']]
+            streak_props = [p for p in player_props if p.get('prop_factor') in ['hot_streak', 'cold_streak', 'rbi_streak']]
+            
+            prop_categories = [
+                ('🔥 HOT STREAKS & TRENDS', streak_props),
+                ('⚾ HITTING PROPS', hitting_props),
+                ('🎯 SITUATIONAL ADVANTAGES', situational_props),
+                ('🥎 PITCHER PROPS', pitching_props)
+            ]
+            
+            for category_name, category_props in prop_categories:
+                if category_props:
+                    print(f"\n{category_name}:")
+                    print("-" * 40)
+                    
+                    for i, rec in enumerate(category_props[:5], 1):  # Top 5 per category
+                        game = mlb_games[mlb_games['game_id'] == rec['game_id']].iloc[0]
+                        
+                        confidence_emoji = "🔥" if rec['confidence'] == 'high' else "⚡" if rec['confidence'] == 'medium' else "💡"
+                        
+                        prop_display = rec['bet_type'].upper().replace('_', ' ').replace('PLAYER ', '').replace('PITCHER ', '')
+                        if 'prop_line' in rec:
+                            prop_display += f" ({rec['prop_line']})"
+                        
+                        print(f"\n{i}. {confidence_emoji} {rec.get('player', 'Player')} - {prop_display}")
+                        print(f"   Game: {game['away_team']} @ {game['home_team']}")
+                        print(f"   Confidence: {rec['confidence'].upper()} ({rec['score']:.1f}/3.0)")
+                        print(f"   Analysis: {rec['reasons'][0] if isinstance(rec.get('reasons'), list) else rec.get('reason', 'No reason provided')}")
+        
+        else:
+            print(f"\n🎯 PLAYER PROPS: No clear prop opportunities identified today")
+        
+        # Enhanced parlay display
+        if parlays:
+            print(f"\n🎰 ENHANCED PARLAY SUGGESTIONS:")
+            print("-" * 60)
+            
+            # Group parlays by category
+            categories = {
+                'specialty': '🏅 SPECIALTY PARLAYS',
+                'same_game': '🎲 SAME GAME PARLAYS (SGP)',  
+                'multi_game': '🌟 MULTI-GAME PARLAYS'
+            }
+            
+            current_category = None
+            parlay_count = 0
+            
+            for parlay in parlays[:10]:  # Top 10 parlays
+                if parlay['parlay_category'] != current_category:
+                    current_category = parlay['parlay_category']
+                    print(f"\n{categories.get(current_category, current_category.upper())}:")
+                    print("-" * 40)
+                    parlay_count = 0
+                
+                parlay_count += 1
+                risk_emoji = "🟢" if parlay['risk_level'] == 'low' else "🟡" if parlay['risk_level'] == 'medium' else "🔴"
+                
+                print(f"\n{parlay_count}. {risk_emoji} {parlay['type'].upper()} - {parlay['risk_level'].upper()} RISK")
+                print(f"   Expected Odds: {parlay['expected_odds']}")
+                print(f"   Strategy: {parlay['reasoning']}")
+                print("   Legs:")
+                
+                for j, leg in enumerate(parlay['legs'], 1):
+                    game = mlb_games[mlb_games['game_id'] == leg['game_id']].iloc[0]
+                    
+                    leg_display = leg['bet_type'].replace('_', ' ').title()
+                    if 'player' in leg:
+                        leg_display = f"{leg['player']} {leg_display.replace('Player ', '')}"
+                    if leg.get('prop_line'):
+                        leg_display += f" ({leg['prop_line']})"
+                    if leg.get('line'):
+                        leg_display += f" ({leg['line']})"
+                    
+                    print(f"   {j}. {leg_display}: {game['away_team']} @ {game['home_team']}")
+        
+        print("\n" + "=" * 60)
+        print("💡 ADVANCED BETTING STRATEGY TIPS:")
+        print("• Start with high-confidence team bets and situational player props")
+        print("• Hot streaks in props often continue - ride the momentum")
+        print("• Weather and venue factors significantly impact prop outcomes")
+        print("• Pitcher matchups are crucial for hitter props success")
+        print("• Same Game Parlays offer higher payouts but require correlated outcomes")
+        print("• Consider F5 bets to avoid bullpen uncertainty")
+        print("• Run lines (+/- 1.5) often offer better value than moneylines")
+        print("• Monitor line movement alerts for value opportunities")
+        print("• Advanced props (total bases, walks) have less market attention")
+        print("• Pitcher props can be more predictable than hitter props")
+        print("\n⚠️  Remember: Bet responsibly and within your means!")
+        print("📈 These are analytical suggestions, not guaranteed wins.")
+        print("🎯 Mix different bet types for a balanced betting portfolio.")
+        print("🔍 Advanced props require deeper analysis but offer more value.")
+        print("=" * 60)
+        
+        return {
+            'recommendations': recommendations,
+            'team_bets': team_bets,
+            'player_props': player_props,
+            'parlays': parlays,
+            'line_alerts': line_alerts,
+            'games': mlb_games,
+            'weather': weather_data,
+            'odds': odds_data
+        }
+
+# Test the code
+if __name__ == "__main__":
+    # Test data collection
+    collector = MLBDataCollector()
+    results = collector.test_all_apis()
+    
+    # Run betting analysis
+    analyzer = MLBBettingAnalyzer(collector)
+    daily_recs = analyzer.get_daily_recommendations()

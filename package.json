@@ -1,0 +1,41 @@
+{
+  "name": "mlb-betting-analytics",
+  "version": "1.0.0",
+  "description": "Professional MLB betting analysis platform with advanced AI models",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "serve": "npx serve .",
+    "dev": "python -m http.server 8000",
+    "build": "echo 'Static site - no build needed'",
+    "deploy": "netlify deploy --prod",
+    "preview": "netlify deploy"
+  },
+  "keywords": [
+    "mlb",
+    "betting",
+    "analytics",
+    "sports",
+    "ai",
+    "predictions",
+    "baseball"
+  ],
+  "author": "Steve Racinski",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/mlb-betting-analytics"
+  },
+  "homepage": "https://mlb-betting-analytics.netlify.app",
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
