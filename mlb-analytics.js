@@ -355,6 +355,18 @@ class MLBAnalyticsEngine {
         return recommendations;
     }
 
+    // Helper function to convert numeric scores to confidence categories
+    getConfidenceFromScore(score) {
+        if (score >= 9.0) return 'elite';
+        if (score >= 8.0) return 'very-high';
+        if (score >= 7.0) return 'high';
+        if (score >= 6.0) return 'medium-high';
+        if (score >= 5.0) return 'medium';
+        if (score >= 4.0) return 'medium-low';
+        if (score >= 3.0) return 'low';
+        return 'very-low';
+    }
+
     analyzePlayerProps(games) {
         const recommendations = [];
         
@@ -365,42 +377,59 @@ class MLBAnalyticsEngine {
             Object.entries(this.playerDatabase).forEach(([playerName, playerData]) => {
                 if (playerData.team === awayTeam || playerData.team === homeTeam) {
                     
-                    // Hot streak analysis
+                    // Hot streak analysis (Enhanced scoring)
                     if (playerData.hotStreak && playerData.avg >= 0.280) {
+                        const baseScore = 6.0;
+                        const avgBonus = (playerData.avg - 0.280) * 10; // Bonus for higher average
+                        const finalScore = Math.min(baseScore + avgBonus, 8.5);
+                        
                         recommendations.push({
                             gameId,
                             betType: 'player_hits_over',
                             player: playerName,
                             propLine: '1.5 hits',
                             reason: `${playerName} on hot streak with .${Math.round(playerData.avg * 1000)} average`,
-                            confidence: 'medium',
-                            propFactor: 'hot_streak'
+                            confidence: this.getConfidenceFromScore(finalScore),
+                            propFactor: 'hot_streak',
+                            rawScore: finalScore
                         });
                     }
                     
-                    // Power hitter in favorable venue
+                    // Power hitter in favorable venue (Enhanced scoring)
                     if (playerData.power >= 25 && this.venueFactors[venue]?.favors === 'offense') {
+                        const baseScore = 5.5;
+                        const powerBonus = (playerData.power - 25) * 0.1; // Bonus for higher power
+                        const venueBonus = 1.0; // Venue advantage
+                        const finalScore = Math.min(baseScore + powerBonus + venueBonus, 8.0);
+                        
                         recommendations.push({
                             gameId,
                             betType: 'player_hr_over',
                             player: playerName,
                             propLine: '0.5 home runs',
                             reason: `${playerName} power hitter (${playerData.power} HR power) in hitter-friendly ${venue}`,
-                            confidence: 'medium',
-                            propFactor: 'venue_boost'
+                            confidence: this.getConfidenceFromScore(finalScore),
+                            propFactor: 'venue_boost',
+                            rawScore: finalScore
                         });
                     }
                     
-                    // RBI opportunities
+                    // RBI opportunities (Enhanced scoring)
                     if (playerData.power >= 20 && playerData.avg >= 0.270) {
+                        const baseScore = 4.0;
+                        const powerBonus = (playerData.power - 20) * 0.08;
+                        const avgBonus = (playerData.avg - 0.270) * 8;
+                        const finalScore = Math.min(baseScore + powerBonus + avgBonus, 7.0);
+                        
                         recommendations.push({
                             gameId,
                             betType: 'player_rbi_over',
                             player: playerName,
                             propLine: '0.5 RBIs',
                             reason: `${playerName} consistent RBI producer with power and average`,
-                            confidence: 'low',
-                            propFactor: 'rbi_consistency'
+                            confidence: this.getConfidenceFromScore(finalScore),
+                            propFactor: 'rbi_consistency',
+                            rawScore: finalScore
                         });
                     }
                 }
@@ -420,59 +449,80 @@ class MLBAnalyticsEngine {
                 const pitcher = this.pitcherDatabase[pitcherName];
                 if (!pitcher) return;
                 
-                // Strikeout model
+                // Strikeout model (Enhanced scoring)
                 if (pitcher.kPer9 >= 10.0) {
+                    const baseScore = 6.0;
+                    const kBonus = (pitcher.kPer9 - 10.0) * 0.3; // Bonus for higher K rate
+                    const finalScore = Math.min(baseScore + kBonus, 9.0);
+                    
                     recommendations.push({
                         gameId,
                         betType: 'pitcher_strikeouts_over',
                         player: pitcherName,
                         propLine: `${Math.floor(pitcher.kPer9 * 0.6)} strikeouts`,
                         reason: `${pitcherName} strikeout model: ${pitcher.kPer9} K/9 rate`,
-                        confidence: pitcher.kPer9 >= 12.0 ? 'high' : 'medium',
+                        confidence: this.getConfidenceFromScore(finalScore),
                         model: 'strikeout_rate',
-                        kPer9: pitcher.kPer9
+                        kPer9: pitcher.kPer9,
+                        rawScore: finalScore
                     });
                 }
                 
-                // WHIP model
+                // WHIP model (Enhanced scoring)
                 if (pitcher.whip <= 1.10) {
+                    const baseScore = 5.5;
+                    const whipBonus = (1.10 - pitcher.whip) * 5; // Bonus for lower WHIP
+                    const finalScore = Math.min(baseScore + whipBonus, 8.0);
+                    
                     recommendations.push({
                         gameId,
                         betType: 'pitcher_hits_allowed_under',
                         player: pitcherName,
                         propLine: 'hits allowed',
                         reason: `${pitcherName} WHIP excellence: ${pitcher.whip} WHIP`,
-                        confidence: 'medium',
+                        confidence: this.getConfidenceFromScore(finalScore),
                         model: 'whip_analysis',
+                        rawScore: finalScore,
                         whip: pitcher.whip
                     });
                 }
                 
-                // Durability model
+                // Durability model (Enhanced scoring)
                 if (pitcher.durability >= 6.0) {
+                    const baseScore = 5.5;
+                    const durabilityBonus = (pitcher.durability - 6.0) * 0.4;
+                    const finalScore = Math.min(baseScore + durabilityBonus, 8.5);
+                    
                     recommendations.push({
                         gameId,
                         betType: 'pitcher_innings_over',
                         player: pitcherName,
                         propLine: `${pitcher.durability - 0.5} innings`,
                         reason: `${pitcherName} durability: ${pitcher.durability} avg innings/start`,
-                        confidence: pitcher.durability >= 6.5 ? 'high' : 'medium',
+                        confidence: this.getConfidenceFromScore(finalScore),
                         model: 'innings_durability',
-                        avgInnings: pitcher.durability
+                        avgInnings: pitcher.durability,
+                        rawScore: finalScore
                     });
                 }
                 
-                // Quality start model
+                // Quality start model (Enhanced scoring)
                 if (pitcher.durability >= 6.0 && pitcher.era <= 3.50) {
+                    const baseScore = 6.0;
+                    const eraBonus = (3.50 - pitcher.era) * 0.8;
+                    const durabilityBonus = (pitcher.durability - 6.0) * 0.3;
+                    const finalScore = Math.min(baseScore + eraBonus + durabilityBonus, 8.5);
+                    
                     recommendations.push({
                         gameId,
                         betType: 'pitcher_quality_start',
                         player: pitcherName,
                         propLine: 'quality start (6+ IP, ≤3 ER)',
                         reason: `${pitcherName} QS model: ${pitcher.durability} IP/start, ${pitcher.era} ERA`,
-                        confidence: 'medium',
+                        confidence: this.getConfidenceFromScore(finalScore),
                         model: 'quality_start',
-                        era: pitcher.era
+                        era: pitcher.era,
+                        rawScore: finalScore
                     });
                 }
             });
@@ -538,35 +588,57 @@ class MLBAnalyticsEngine {
     buildParlayRecommendations(recommendations) {
         const parlays = [];
         
-        // Filter high confidence bets
-        const highConfBets = recommendations.filter(r => r.confidence === 'high');
-        const mediumConfBets = recommendations.filter(r => r.confidence === 'medium');
+        // Filter by confidence levels (updated for 10-point scale)
+        const highConfBets = recommendations.filter(r => 
+            ['elite', 'very-high', 'high'].includes(r.confidence)
+        );
+        const mediumConfBets = recommendations.filter(r => 
+            ['medium-high', 'medium'].includes(r.confidence)
+        );
+        const allQualityBets = recommendations.filter(r => 
+            r.score >= 5.0 // Score-based filtering for more options
+        );
         
-        // Multi-game parlays
-        if (highConfBets.length >= 2) {
-            for (let i = 0; i < highConfBets.length - 1; i++) {
-                for (let j = i + 1; j < highConfBets.length && j < i + 3; j++) {
-                    const bet1 = highConfBets[i];
-                    const bet2 = highConfBets[j];
+        console.log(`Parlay Generation: ${highConfBets.length} high-conf, ${mediumConfBets.length} medium-conf, ${allQualityBets.length} total quality bets`);
+        
+        // FALLBACK: If not enough quality bets, lower the threshold
+        let workingBets = allQualityBets;
+        if (workingBets.length < 4) {
+            workingBets = recommendations.filter(r => r.score >= 4.0);
+            console.log(`Lowered threshold: ${workingBets.length} bets with score >= 4.0`);
+        }
+        if (workingBets.length < 4) {
+            workingBets = recommendations.filter(r => r.score >= 3.0);
+            console.log(`Lowered threshold again: ${workingBets.length} bets with score >= 3.0`);
+        }
+        
+        // Multi-game parlays (Enhanced)
+        if (workingBets.length >= 2) {
+            for (let i = 0; i < Math.min(workingBets.length - 1, 10); i++) {
+                for (let j = i + 1; j < Math.min(workingBets.length, i + 5); j++) {
+                    const bet1 = workingBets[i];
+                    const bet2 = workingBets[j];
                     
                     // Avoid same game conflicting bets
                     if (bet1.gameId !== bet2.gameId) {
+                        const avgScore = (bet1.score + bet2.score) / 2;
                         parlays.push({
                             legs: [bet1, bet2],
                             type: '2-leg parlay',
                             parlayCategory: 'multi_game',
-                            riskLevel: 'medium',
+                            riskLevel: avgScore >= 7.0 ? 'low' : avgScore >= 5.5 ? 'medium' : 'high',
                             expectedOdds: '+260',
-                            reasoning: 'Two high-confidence bets from different games'
+                            reasoning: `Two quality bets (avg score: ${avgScore.toFixed(1)}/10) from different games`,
+                            avgScore: avgScore
                         });
                     }
                 }
             }
         }
         
-        // Same Game Parlays (SGP)
+        // Enhanced Same Game Parlays (SGP)
         const gameGroups = {};
-        recommendations.forEach(rec => {
+        workingBets.forEach(rec => {
             if (!gameGroups[rec.gameId]) {
                 gameGroups[rec.gameId] = [];
             }
@@ -577,78 +649,154 @@ class MLBAnalyticsEngine {
             if (gameBets.length >= 2) {
                 const overBets = gameBets.filter(b => b.betType.includes('over'));
                 const playerBets = gameBets.filter(b => b.betType.includes('player_'));
+                const mlBets = gameBets.filter(b => b.betType.includes('_ml'));
                 
+                // SGP Strategy 1: Over + Player Props
                 if (overBets.length > 0 && playerBets.length > 0) {
                     const sgpLegs = [...overBets.slice(0, 1), ...playerBets.slice(0, 2)];
-                    if (sgpLegs.length >= 2) {
-                        parlays.push({
-                            legs: sgpLegs,
-                            type: `${sgpLegs.length}-leg SGP`,
-                            parlayCategory: 'same_game',
-                            riskLevel: 'medium',
-                            expectedOdds: `+${(sgpLegs.length * 200)}`,
-                            reasoning: 'Correlated SGP: High-scoring game + player performance'
-                        });
-                    }
+                    const avgScore = sgpLegs.reduce((sum, leg) => sum + leg.score, 0) / sgpLegs.length;
+                    
+                    parlays.push({
+                        legs: sgpLegs,
+                        type: `${sgpLegs.length}-leg SGP`,
+                        parlayCategory: 'same_game',
+                        riskLevel: avgScore >= 7.0 ? 'low' : 'medium',
+                        expectedOdds: `+${(sgpLegs.length * 200)}`,
+                        reasoning: `Correlated SGP: High-scoring game + player performance (avg: ${avgScore.toFixed(1)}/10)`,
+                        avgScore: avgScore
+                    });
+                }
+                
+                // SGP Strategy 2: ML + Player Props
+                if (mlBets.length > 0 && playerBets.length > 0) {
+                    const sgpLegs = [...mlBets.slice(0, 1), ...playerBets.slice(0, 2)];
+                    const avgScore = sgpLegs.reduce((sum, leg) => sum + leg.score, 0) / sgpLegs.length;
+                    
+                    parlays.push({
+                        legs: sgpLegs,
+                        type: `${sgpLegs.length}-leg Team SGP`,
+                        parlayCategory: 'same_game',
+                        riskLevel: 'high',
+                        expectedOdds: `+${(sgpLegs.length * 250)}`,
+                        reasoning: `Team win + player performance SGP (avg: ${avgScore.toFixed(1)}/10)`,
+                        avgScore: avgScore
+                    });
                 }
             }
         });
         
-        // Specialty parlays
-        const underBets = recommendations.filter(r => r.betType.includes('under') && r.confidence === 'high');
+        // Enhanced Specialty parlays
+        const underBets = workingBets.filter(r => r.betType.includes('under') && r.score >= 5.0);
+        const overBets = workingBets.filter(r => r.betType.includes('over') && r.score >= 5.0);
+        
         if (underBets.length >= 2) {
+            const avgScore = underBets.slice(0, 3).reduce((sum, bet) => sum + bet.score, 0) / Math.min(3, underBets.length);
             parlays.push({
                 legs: underBets.slice(0, 3),
                 type: `${Math.min(3, underBets.length)}-leg Pitcher Duel`,
                 parlayCategory: 'specialty',
-                riskLevel: 'medium',
+                riskLevel: avgScore >= 7.0 ? 'low' : 'medium',
                 expectedOdds: `+${(Math.min(3, underBets.length) * 180)}`,
-                reasoning: 'Multiple strong pitching matchups = low-scoring games'
+                reasoning: `Multiple strong pitching matchups = low-scoring games (avg: ${avgScore.toFixed(1)}/10)`,
+                avgScore: avgScore
             });
         }
         
-        return parlays.slice(0, 8); // Top 8 parlays
+        // Slugfest Parlay - Multiple overs
+        if (overBets.length >= 2) {
+            const avgScore = overBets.slice(0, 3).reduce((sum, bet) => sum + bet.score, 0) / Math.min(3, overBets.length);
+            parlays.push({
+                legs: overBets.slice(0, 3),
+                type: `${Math.min(3, overBets.length)}-leg Slugfest`,
+                parlayCategory: 'specialty',
+                riskLevel: avgScore >= 7.0 ? 'low' : 'medium',
+                expectedOdds: `+${(Math.min(3, overBets.length) * 200)}`,
+                reasoning: `Multiple high-scoring setups = offensive explosion (avg: ${avgScore.toFixed(1)}/10)`,
+                avgScore: avgScore
+            });
+        }
+        
+        // Favorites Parlay - ML favorites
+        const mlFavorites = workingBets.filter(r => r.betType.includes('_ml') && r.score >= 5.0);
+        if (mlFavorites.length >= 2) {
+            const avgScore = mlFavorites.slice(0, 4).reduce((sum, bet) => sum + bet.score, 0) / Math.min(4, mlFavorites.length);
+            parlays.push({
+                legs: mlFavorites.slice(0, 4),
+                type: `${Math.min(4, mlFavorites.length)}-leg Chalk Parlay`,
+                parlayCategory: 'specialty',
+                riskLevel: 'low',
+                expectedOdds: `+${(Math.min(4, mlFavorites.length) * 120)}`,
+                reasoning: `High-confidence favorites - safer parlay (avg: ${avgScore.toFixed(1)}/10)`,
+                avgScore: avgScore
+            });
+        }
+        
+        // Sort parlays by average score (highest first)
+        parlays.sort((a, b) => (b.avgScore || 0) - (a.avgScore || 0));
+        
+        console.log(`Generated ${parlays.length} parlays total`);
+        return parlays.slice(0, 12); // Top 12 parlays for more variety
     }
 
     async runComprehensiveAnalysis() {
         try {
+            console.log("🚀 Starting comprehensive analysis...");
             this.updateLoadingStep('step1');
             
             // Get all data
+            console.log("📊 Getting today's MLB games...");
             const games = await this.getTodaysMLBGames();
+            console.log(`✅ Found ${games.length} games`);
+            
             if (games.length === 0) {
                 throw new Error('No games found for today');
             }
             
             this.updateLoadingStep('step2');
             
+            console.log("📈 Getting odds and weather data...");
             const [odds, weather] = await Promise.all([
                 this.getMLBOdds(),
                 this.getWeatherData(games)
             ]);
+            console.log(`✅ Odds: ${odds ? 'loaded' : 'none'}, Weather: ${weather ? weather.length : 0} locations`);
             
             this.updateLoadingStep('step3');
             
             // Run all analysis models
+            console.log("🧠 Running analysis models...");
             let allRecommendations = [];
             
             // Core analysis
             if (weather) {
+                console.log("🌤️ Analyzing weather impact...");
                 allRecommendations.push(...this.analyzeWeatherImpact(weather));
             }
+            console.log("🏟️ Analyzing team trends...");
             allRecommendations.push(...this.analyzeTeamTrends(games));
+            console.log("⚾ Analyzing starting pitchers...");
             allRecommendations.push(...this.analyzeStartingPitchers(games));
+            console.log("🏟️ Analyzing venue factors...");
             allRecommendations.push(...this.analyzeVenueFactors(games, weather));
             
             // Advanced models
+            console.log("🎯 Analyzing player props...");
             allRecommendations.push(...this.analyzePlayerProps(games));
+            console.log("🎯 Running advanced pitcher models...");
             allRecommendations.push(...this.analyzeAdvancedPitcherModels(games));
+            
+            console.log(`📊 Generated ${allRecommendations.length} initial recommendations`);
             
             this.updateLoadingStep('step4');
             
             // Combine and score recommendations
+            console.log("🎯 Scoring and ranking recommendations...");
             const finalRecommendations = this.scoreAndRankRecommendations(allRecommendations);
+            console.log(`✅ Final recommendations: ${finalRecommendations.length}`);
+            
+            console.log("🎰 Building parlay recommendations...");
             const parlayRecommendations = this.buildParlayRecommendations(finalRecommendations);
+            console.log(`🎰 Generated ${parlayRecommendations.length} parlays`);
             
             // Cache results
             this.cache = {
@@ -671,16 +819,51 @@ class MLBAnalyticsEngine {
             };
             
         } catch (error) {
-            console.error('Analysis error:', error);
-            throw error;
+            console.error('❌ Analysis error:', error);
+            console.error('❌ Error stack:', error.stack);
+            throw new Error(`Analysis failed: ${error.message}`);
         }
     }
 
     scoreAndRankRecommendations(recommendations) {
+        // FIRST: Convert any legacy confidence strings to scores for compatibility
+        const processedRecommendations = recommendations.map(rec => {
+            if (rec.rawScore) {
+                // Already has score, use it
+                return rec;
+            } else {
+                // Convert legacy confidence to score
+                let score = 5.0;
+                switch(rec.confidence) {
+                    case 'high': score = 7.0; break;
+                    case 'medium': score = 5.5; break;
+                    case 'low': score = 4.0; break;
+                    default: score = 5.0;
+                }
+                
+                // Add factor bonuses
+                if (rec.weatherFactor === 'temperature_boost') score += 0.8;
+                if (rec.weatherFactor === 'wind_boost') score += 0.7;
+                if (rec.trendFactor === 'recent_performance') score += 0.5;
+                if (rec.venueFactor === 'offense_friendly') score += 0.6;
+                if (rec.pitcherFactor === 'elite_starter') score += 1.0;
+                if (rec.propFactor === 'hot_streak') score += 0.9;
+                
+                score = Math.min(score, 10.0);
+                
+                return {
+                    ...rec,
+                    rawScore: score,
+                    score: Math.round(score * 10) / 10,
+                    confidence: this.getConfidenceFromScore(score)
+                };
+            }
+        });
+        
         // Group by game and bet type to find confluence
         const gameAnalysis = {};
         
-        recommendations.forEach(rec => {
+        processedRecommendations.forEach(rec => {
             const key = `${rec.gameId}-${rec.betType}`;
             if (!gameAnalysis[key]) {
                 gameAnalysis[key] = {
@@ -699,21 +882,70 @@ class MLBAnalyticsEngine {
         // Calculate final scores
         const finalRecs = Object.values(gameAnalysis).map(rec => {
             const numFactors = rec.factors.filter(Boolean).length;
-            const confidenceWeights = { high: 3, medium: 2, low: 1 };
-            const totalWeight = rec.confidenceScores.reduce((sum, conf) => sum + confidenceWeights[conf], 0);
-            const avgConfidence = totalWeight / rec.confidenceScores.length;
             
-            // Boost confidence if multiple factors agree
-            let finalConfidence = avgConfidence >= 2.5 ? 'high' : avgConfidence >= 1.5 ? 'medium' : 'low';
-            if (numFactors >= 3 && finalConfidence === 'medium') {
+            // UPGRADED: 10-point confidence scoring system for more granular analysis
+            // Updated confidence weights to handle both old and new confidence levels
+            const confidenceWeights = { 
+                // New 10-point system
+                'elite': 10, 'very-high': 9, 'high': 8, 'medium-high': 7,
+                'medium': 6, 'medium-low': 5, 'low': 4, 'very-low': 3,
+                // Legacy system (fallback)
+                'high': 8, 'medium': 6, 'low': 4
+            };
+            
+            const totalWeight = rec.confidenceScores.reduce((sum, conf) => {
+                return sum + (confidenceWeights[conf] || 5); // Default to 5 if unknown
+            }, 0);
+            const baseConfidence = totalWeight / rec.confidenceScores.length;
+            
+            // Enhanced scoring with factor bonus (more detailed scale)
+            let finalScore = baseConfidence + (numFactors * 0.8); // Increased factor bonus
+            
+            // 10-point confidence categories with more granular levels
+            let finalConfidence, confidenceLabel;
+            if (finalScore >= 9.0) {
+                finalConfidence = 'elite';
+                confidenceLabel = 'ELITE (9.0+)';
+            } else if (finalScore >= 8.0) {
+                finalConfidence = 'very-high';
+                confidenceLabel = 'VERY HIGH (8.0+)';
+            } else if (finalScore >= 7.0) {
                 finalConfidence = 'high';
+                confidenceLabel = 'HIGH (7.0+)';
+            } else if (finalScore >= 6.0) {
+                finalConfidence = 'medium-high';
+                confidenceLabel = 'MEDIUM-HIGH (6.0+)';
+            } else if (finalScore >= 5.0) {
+                finalConfidence = 'medium';
+                confidenceLabel = 'MEDIUM (5.0+)';
+            } else if (finalScore >= 4.0) {
+                finalConfidence = 'medium-low';
+                confidenceLabel = 'MEDIUM-LOW (4.0+)';
+            } else if (finalScore >= 3.0) {
+                finalConfidence = 'low';
+                confidenceLabel = 'LOW (3.0+)';
+            } else {
+                finalConfidence = 'very-low';
+                confidenceLabel = 'VERY LOW (<3.0)';
             }
+            
+            // Multi-factor bonus: Boost score when multiple models agree
+            if (numFactors >= 4) {
+                finalScore += 1.0; // Significant boost for 4+ factors
+            } else if (numFactors >= 3) {
+                finalScore += 0.5; // Moderate boost for 3+ factors
+            }
+            
+            // Cap at 10.0 maximum
+            finalScore = Math.min(finalScore, 10.0);
             
             return {
                 ...rec,
                 confidence: finalConfidence,
-                score: avgConfidence + (numFactors * 0.2),
-                numFactors
+                confidenceLabel: confidenceLabel,
+                score: Math.round(finalScore * 10) / 10, // Round to 1 decimal
+                numFactors,
+                rawScore: baseConfidence
             };
         });
         

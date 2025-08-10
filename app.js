@@ -20,21 +20,32 @@ class MLBAnalyticsApp {
     }
 
     setupEventListeners() {
-        // Main control buttons
-        document.getElementById('analyzeBtn').addEventListener('click', () => this.runAnalysis());
-        document.getElementById('refreshBtn').addEventListener('click', () => this.refreshData());
-        document.getElementById('retryBtn').addEventListener('click', () => this.runAnalysis());
+        // Main control buttons - with null checks
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const retryBtn = document.getElementById('retryBtn');
         
-        // Filter controls
-        document.getElementById('confidenceFilter').addEventListener('change', (e) => {
-            this.engine.currentFilters.confidence = e.target.value;
-            this.updateDisplays();
-        });
+        if (analyzeBtn) analyzeBtn.addEventListener('click', () => this.runAnalysis());
+        if (refreshBtn) refreshBtn.addEventListener('click', () => this.refreshData());
+        if (retryBtn) retryBtn.addEventListener('click', () => this.runAnalysis());
         
-        document.getElementById('betTypeFilter').addEventListener('change', (e) => {
-            this.engine.currentFilters.betType = e.target.value;
-            this.updateDisplays();
-        });
+        // Filter controls - with null checks
+        const confidenceFilter = document.getElementById('confidenceFilter');
+        const betTypeFilter = document.getElementById('betTypeFilter');
+        
+        if (confidenceFilter) {
+            confidenceFilter.addEventListener('change', (e) => {
+                this.engine.currentFilters.confidence = e.target.value;
+                this.updateDisplays();
+            });
+        }
+        
+        if (betTypeFilter) {
+            betTypeFilter.addEventListener('change', (e) => {
+                this.engine.currentFilters.betType = e.target.value;
+                this.updateDisplays();
+            });
+        }
         
         // Tab navigation
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -47,12 +58,15 @@ class MLBAnalyticsApp {
         // Sub-filters
         this.setupSubFilters();
         
-        // Export functionality
-        document.getElementById('exportFab').addEventListener('click', () => {
-            if (this.currentData) {
-                this.engine.exportResults();
-            }
-        });
+        // Export functionality - with null check
+        const exportFab = document.getElementById('exportFab');
+        if (exportFab) {
+            exportFab.addEventListener('click', () => {
+                if (this.currentData) {
+                    this.engine.exportResults();
+                }
+            });
+        }
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -178,18 +192,28 @@ class MLBAnalyticsApp {
     }
 
     showErrorState(message) {
-        document.getElementById('mainContent').style.display = 'none';
-        document.getElementById('loadingState').style.display = 'none';
-        document.getElementById('errorState').style.display = 'flex';
-        document.getElementById('errorMessage').textContent = message;
+        const mainContent = document.getElementById('mainContent');
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        if (mainContent) mainContent.style.display = 'none';
+        if (loadingState) loadingState.style.display = 'none';
+        if (errorState) errorState.style.display = 'flex';
+        if (errorMessage) errorMessage.textContent = message;
     }
 
     updateHeaderStats() {
         if (!this.currentData) return;
         
-        document.getElementById('totalOpportunities').textContent = this.currentData.totalOpportunities;
-        document.getElementById('highConfidence').textContent = this.currentData.highConfidence;
-        document.getElementById('gamesAnalyzed').textContent = this.currentData.games.length;
+        // Safely update header stats with null checks
+        const totalOpportunities = document.getElementById('totalOpportunities');
+        const highConfidence = document.getElementById('highConfidence');
+        const gamesAnalyzed = document.getElementById('gamesAnalyzed');
+        
+        if (totalOpportunities) totalOpportunities.textContent = this.currentData.totalOpportunities || 0;
+        if (highConfidence) highConfidence.textContent = this.currentData.highConfidence || 0;
+        if (gamesAnalyzed) gamesAnalyzed.textContent = this.currentData.games?.length || 0;
     }
 
     switchTab(tabId) {
@@ -281,17 +305,32 @@ class MLBAnalyticsApp {
         container.innerHTML = topPicks.map(pick => {
             const game = this.currentData.games.find(g => g.gameId === pick.gameId);
             const confidenceClass = `confidence-${pick.confidence}`;
-            const confidenceEmoji = pick.confidence === 'high' ? '🔥' : pick.confidence === 'medium' ? '⚡' : '💡';
+            
+            // Enhanced confidence emoji mapping for 10-point scale
+            const getConfidenceEmoji = (confidence) => {
+                switch(confidence) {
+                    case 'elite': return '👑';
+                    case 'very-high': return '🔥';
+                    case 'high': return '⚡';
+                    case 'medium-high': return '💪';
+                    case 'medium': return '💡';
+                    case 'medium-low': return '⚠️';
+                    case 'low': return '📊';
+                    case 'very-low': return '❓';
+                    default: return '💡';
+                }
+            };
+            const confidenceEmoji = getConfidenceEmoji(pick.confidence);
             
             return `
                 <div class="pick-card fade-in">
                     <div class="pick-header">
                         <div>
                             <span class="confidence-badge ${confidenceClass}">
-                                ${confidenceEmoji} ${pick.confidence.toUpperCase()}
+                                ${confidenceEmoji} ${pick.confidenceLabel || pick.confidence.toUpperCase()}
                             </span>
                             <div class="pick-score" title="Analysis Score">
-                                Score: ${pick.score.toFixed(1)}/3.0
+                                Score: ${pick.score}/10.0
                             </div>
                         </div>
                     </div>
@@ -477,7 +516,22 @@ class MLBAnalyticsApp {
         
         container.innerHTML = filteredBets.map(bet => {
             const game = this.currentData.games.find(g => g.gameId === bet.gameId);
-            const confidenceEmoji = bet.confidence === 'high' ? '🔥' : bet.confidence === 'medium' ? '⚡' : '💡';
+            
+            // Enhanced confidence emoji mapping for 10-point scale
+            const getConfidenceEmoji = (confidence) => {
+                switch(confidence) {
+                    case 'elite': return '👑';
+                    case 'very-high': return '🔥';
+                    case 'high': return '⚡';
+                    case 'medium-high': return '💪';
+                    case 'medium': return '💡';
+                    case 'medium-low': return '⚠️';
+                    case 'low': return '📊';
+                    case 'very-low': return '❓';
+                    default: return '💡';
+                }
+            };
+            const confidenceEmoji = getConfidenceEmoji(bet.confidence);
             
             return `
                 <div class="bet-item fade-in">
@@ -489,7 +543,7 @@ class MLBAnalyticsApp {
                             <h4>${this.formatBetType(bet.betType)}</h4>
                         </div>
                         <div class="bet-score">
-                            ${bet.score.toFixed(1)}/3.0
+                            ${bet.score}/10.0
                         </div>
                     </div>
                     <div class="game-matchup">
@@ -544,7 +598,22 @@ class MLBAnalyticsApp {
         
         container.innerHTML = filteredProps.map(prop => {
             const game = this.currentData.games.find(g => g.gameId === prop.gameId);
-            const confidenceEmoji = prop.confidence === 'high' ? '🔥' : prop.confidence === 'medium' ? '⚡' : '💡';
+            
+            // Enhanced confidence emoji mapping for 10-point scale
+            const getConfidenceEmoji = (confidence) => {
+                switch(confidence) {
+                    case 'elite': return '👑';
+                    case 'very-high': return '🔥';
+                    case 'high': return '⚡';
+                    case 'medium-high': return '💪';
+                    case 'medium': return '💡';
+                    case 'medium-low': return '⚠️';
+                    case 'low': return '📊';
+                    case 'very-low': return '❓';
+                    default: return '💡';
+                }
+            };
+            const confidenceEmoji = getConfidenceEmoji(prop.confidence);
             
             return `
                 <div class="prop-item fade-in">
@@ -557,7 +626,7 @@ class MLBAnalyticsApp {
                             <div class="prop-type">${this.formatBetType(prop.betType)}</div>
                         </div>
                         <div class="prop-score">
-                            ${prop.score.toFixed(1)}/3.0
+                            ${prop.score}/10.0
                         </div>
                     </div>
                     ${prop.propLine ? `<div class="prop-line"><strong>Line:</strong> ${prop.propLine}</div>` : ''}

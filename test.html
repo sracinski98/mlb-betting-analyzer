@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+</head>
+<body>
+    <h1>JavaScript Debug Test</h1>
+    <div id="output"></div>
+    
+    <script>
+        console.log("Starting debug test...");
+        
+        try {
+            // Test 1: Basic JavaScript
+            console.log("✅ Basic JavaScript working");
+            document.getElementById('output').innerHTML = "Basic JS: ✅<br>";
+            
+            // Test 2: Load analytics engine
+            const script = document.createElement('script');
+            script.src = 'mlb-analytics.js';
+            script.onload = function() {
+                console.log("✅ MLB Analytics script loaded");
+                document.getElementById('output').innerHTML += "Analytics Script: ✅<br>";
+                
+                // Test 3: Create engine instance
+                try {
+                    const engine = new MLBAnalyticsEngine();
+                    console.log("✅ MLBAnalyticsEngine created successfully");
+                    document.getElementById('output').innerHTML += "Engine Creation: ✅<br>";
+                    
+                    // Test 4: Test confidence function
+                    const confidence = engine.getConfidenceFromScore(7.5);
+                    console.log("✅ Confidence function working:", confidence);
+                    document.getElementById('output').innerHTML += `Confidence Function: ✅ (7.5 → ${confidence})<br>`;
+                    
+                } catch (e) {
+                    console.error("❌ Engine creation failed:", e);
+                    document.getElementById('output').innerHTML += "Engine Creation: ❌ " + e.message + "<br>";
+                }
+            };
+            script.onerror = function() {
+                console.error("❌ Failed to load analytics script");
+                document.getElementById('output').innerHTML += "Analytics Script: ❌<br>";
+            };
+            document.head.appendChild(script);
+            
+        } catch (e) {
+            console.error("❌ Basic test failed:", e);
+            document.getElementById('output').innerHTML += "Basic JS: ❌ " + e.message + "<br>";
+        }
+    </script>
+</body>
+</html>
