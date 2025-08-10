@@ -1862,7 +1862,8 @@ class MLBBettingAnalyzer:
     def run_comprehensive_analysis(self):
         """Run complete MLB betting analysis with all models"""
         print("=" * 60)
-        print("🏈 COMPREHENSIVE MLB BETTING ANALYSIS ENGINE")
+        print("🏈 COMPREHENSIVE MLB BETTING ANALYSIS ENGINE v2.1")
+        print("🆕 Enhanced with Advanced AI Models & Real-time Data")
         print("=" * 60)
         
         # Get all data
