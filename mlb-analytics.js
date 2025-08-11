@@ -32,6 +32,19 @@ class MLBAnalyticsEngine {
         this.playerDatabase = this.initializePlayerDatabase();
         this.pitcherDatabase = this.initializePitcherDatabase();
         this.venueFactors = this.initializeVenueFactors();
+        
+        // Initialize Phase 1 components
+        this.expertTrends = new ExpertTrendsAnalyzer();
+        this.hardRockIntegration = new HardRockIntegration();
+        this.betTracker = new BetTrackingSystem();
+        
+        // Enhanced analytics data
+        this.enhancedData = {
+            expertTrends: null,
+            hardRockOdds: null,
+            betPerformance: null,
+            lastAnalysis: null
+        };
     }
 
     initializePlayerDatabase() {
@@ -757,7 +770,7 @@ class MLBAnalyticsEngine {
 
     async runComprehensiveAnalysis() {
         try {
-            console.log("🚀 Starting comprehensive analysis...");
+            console.log("🚀 Starting Phase 1 enhanced comprehensive analysis...");
             this.updateLoadingStep('step1');
             
             // Get all data
@@ -771,17 +784,28 @@ class MLBAnalyticsEngine {
             
             this.updateLoadingStep('step2');
             
-            console.log("📈 Getting odds and weather data...");
-            const [odds, weather] = await Promise.all([
+            console.log("📈 Getting enhanced data (odds, weather, expert trends, Hard Rock)...");
+            const [odds, weather, expertTrends, hardRockOdds] = await Promise.all([
                 this.getMLBOdds(),
-                this.getWeatherData(games)
+                this.getWeatherData(games),
+                this.expertTrends.analyzeTrends(games),
+                this.hardRockIntegration.fetchLiveOdds(games)
             ]);
-            console.log(`✅ Odds: ${odds ? 'loaded' : 'none'}, Weather: ${weather ? weather.length : 0} locations`);
+            
+            // Store enhanced data for use throughout analysis
+            this.enhancedData = {
+                expertTrends: expertTrends,
+                hardRockOdds: hardRockOdds,
+                betPerformance: this.betTracker.getPerformanceAnalytics(),
+                lastAnalysis: Date.now()
+            };
+            
+            console.log(`✅ Enhanced data loaded - Odds: ${odds ? 'loaded' : 'none'}, Weather: ${weather ? weather.length : 0}, Expert trends: ${expertTrends ? 'loaded' : 'none'}, Hard Rock: ${hardRockOdds ? 'loaded' : 'none'}`);
             
             this.updateLoadingStep('step3');
             
-            // Run all analysis models
-            console.log("🧠 Running analysis models...");
+            // Run all analysis models with enhanced data
+            console.log("🧠 Running enhanced analysis models...");
             let allRecommendations = [];
             
             // Core analysis
@@ -797,7 +821,7 @@ class MLBAnalyticsEngine {
             allRecommendations.push(...this.analyzeVenueFactors(games, weather));
             
             // Advanced models
-            console.log("🎯 Analyzing player props...");
+            console.log("🎯 Analyzing player props with enhanced data...");
             allRecommendations.push(...this.analyzePlayerProps(games));
             console.log("🎯 Running advanced pitcher models...");
             allRecommendations.push(...this.analyzeAdvancedPitcherModels(games));
@@ -865,11 +889,55 @@ class MLBAnalyticsEngine {
     }
 
     scoreAndRankRecommendations(recommendations) {
-        // FIRST: Convert any legacy confidence strings to scores for compatibility
+        // ENHANCED: Convert any legacy confidence strings to scores and add Phase 1 enhancements
         const processedRecommendations = recommendations.map(rec => {
             if (rec.rawScore) {
-                // Already has score, use it
-                return rec;
+                // Already has score, but enhance with new factors
+                let enhancedScore = rec.rawScore;
+                
+                // Add expert trends adjustment
+                if (this.enhancedData?.expertTrends) {
+                    const expertAdjustment = this.expertTrends.getExpertAdjustment(
+                        rec.gameId, this.enhancedData.expertTrends
+                    );
+                    enhancedScore += expertAdjustment;
+                    if (expertAdjustment > 0) {
+                        rec.expertTrends = true;
+                        rec.expertBoost = expertAdjustment;
+                    }
+                }
+                
+                // Add Hard Rock odds adjustment
+                if (this.enhancedData?.hardRockOdds) {
+                    const oddsAdjustment = this.hardRockIntegration.getOddsAdjustment(
+                        rec.gameId, rec, this.enhancedData.hardRockOdds
+                    );
+                    enhancedScore += oddsAdjustment;
+                    if (oddsAdjustment > 0) {
+                        rec.hardRockBoost = oddsAdjustment;
+                        rec.hasValueBet = true;
+                    }
+                }
+                
+                // Historical performance adjustment from bet tracking
+                if (this.enhancedData?.betPerformance) {
+                    const performanceData = this.enhancedData.betPerformance.byBetType?.[rec.type];
+                    if (performanceData && performanceData.roi > 10) {
+                        enhancedScore += 0.3; // Boost for historically profitable bet types
+                        rec.historicalBoost = 0.3;
+                    } else if (performanceData && performanceData.roi < -10) {
+                        enhancedScore -= 0.2; // Reduce for historically unprofitable bet types
+                        rec.historicalPenalty = 0.2;
+                    }
+                }
+                
+                enhancedScore = Math.min(enhancedScore, 10.0);
+                
+                return {
+                    ...rec,
+                    rawScore: enhancedScore,
+                    score: Math.round(enhancedScore * 10) / 10,
+                };
             } else {
                 // Convert legacy confidence to score
                 let score = 5.0;
@@ -880,13 +948,47 @@ class MLBAnalyticsEngine {
                     default: score = 5.0;
                 }
                 
-                // Add factor bonuses
+                // Add existing factor bonuses
                 if (rec.weatherFactor === 'temperature_boost') score += 0.8;
                 if (rec.weatherFactor === 'wind_boost') score += 0.7;
                 if (rec.trendFactor === 'recent_performance') score += 0.5;
                 if (rec.venueFactor === 'offense_friendly') score += 0.6;
                 if (rec.pitcherFactor === 'elite_starter') score += 1.0;
                 if (rec.propFactor === 'hot_streak') score += 0.9;
+                
+                // Add Phase 1 enhancements
+                if (this.enhancedData?.expertTrends) {
+                    const expertAdjustment = this.expertTrends.getExpertAdjustment(
+                        rec.gameId, this.enhancedData.expertTrends
+                    );
+                    score += expertAdjustment;
+                    if (expertAdjustment > 0) {
+                        rec.expertTrends = true;
+                        rec.expertBoost = expertAdjustment;
+                    }
+                }
+                
+                if (this.enhancedData?.hardRockOdds) {
+                    const oddsAdjustment = this.hardRockIntegration.getOddsAdjustment(
+                        rec.gameId, rec, this.enhancedData.hardRockOdds
+                    );
+                    score += oddsAdjustment;
+                    if (oddsAdjustment > 0) {
+                        rec.hardRockBoost = oddsAdjustment;
+                        rec.hasValueBet = true;
+                    }
+                }
+                
+                if (this.enhancedData?.betPerformance) {
+                    const performanceData = this.enhancedData.betPerformance.byBetType?.[rec.type];
+                    if (performanceData && performanceData.roi > 10) {
+                        score += 0.3;
+                        rec.historicalBoost = 0.3;
+                    } else if (performanceData && performanceData.roi < -10) {
+                        score -= 0.2;
+                        rec.historicalPenalty = 0.2;
+                    }
+                }
                 
                 score = Math.min(score, 10.0);
                 
