@@ -592,102 +592,225 @@ a:hover {
     }
 }
 
+/* ===== CRITICAL READABILITY OVERRIDES ===== */
+
+/* Force high contrast on all major elements */
+body {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
+}
+
+/* Override any problematic background/text combinations */
+.container, .content, .card, .recommendation-card, .parlay-card, 
+.game-analysis, .stats-grid, .filters, .header, .mobile-header {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* Force readable text on all text elements */
+h1, h2, h3, h4, h5, h6, p, span, div, label, button, a {
+    color: #1e293b !important;
+    font-weight: 500 !important;
+}
+
+/* High contrast buttons */
+button, .btn {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border: 2px solid #2563eb !important;
+    font-weight: 600 !important;
+    padding: 0.75rem 1.5rem !important;
+    font-size: 16px !important;
+}
+
+button:hover, .btn:hover {
+    background-color: #1d4ed8 !important;
+    border-color: #1d4ed8 !important;
+}
+
+/* Force high contrast on stat displays */
+.stat-value, .confidence-score, .probability {
+    color: #1e293b !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+}
+
 /* ===== ENHANCED READABILITY UTILITIES ===== */
 
 /* Enhanced confidence badges with better contrast */
 .confidence-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.25rem 0.75rem;
+    padding: 0.5rem 1rem !important;
     border-radius: 9999px;
-    font-size: 0.875rem;
-    font-weight: 600;
+    font-size: 0.875rem !important;
+    font-weight: 700 !important;
     line-height: 1.2;
+    border: 2px solid !important;
 }
 
+/* Force high contrast confidence badges */
 .confidence-elite {
-    background-color: #7c3aed;
-    color: #ffffff;
-    box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);
+    background-color: #7c3aed !important;
+    color: #ffffff !important;
+    border-color: #7c3aed !important;
+    box-shadow: 0 4px 6px rgba(124, 58, 237, 0.4) !important;
 }
 
 .confidence-very-high {
-    background-color: #10b981;
-    color: #ffffff;
-    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+    background-color: #059669 !important;
+    color: #ffffff !important;
+    border-color: #059669 !important;
+    box-shadow: 0 4px 6px rgba(5, 150, 105, 0.4) !important;
 }
 
 .confidence-high {
-    background-color: #3b82f6;
-    color: #ffffff;
-    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.4) !important;
 }
 
 .confidence-medium-high {
-    background-color: #f59e0b;
-    color: #ffffff;
-    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+    background-color: #d97706 !important;
+    color: #ffffff !important;
+    border-color: #d97706 !important;
+    box-shadow: 0 4px 6px rgba(217, 119, 6, 0.4) !important;
 }
 
 .confidence-medium {
-    background-color: #6b7280;
-    color: #ffffff;
-    box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
+    background-color: #4b5563 !important;
+    color: #ffffff !important;
+    border-color: #4b5563 !important;
+    box-shadow: 0 4px 6px rgba(75, 85, 99, 0.4) !important;
 }
 
 .confidence-low {
-    background-color: #ef4444;
-    color: #ffffff;
-    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    border-color: #dc2626 !important;
+    box-shadow: 0 4px 6px rgba(220, 38, 38, 0.4) !important;
 }
 
-/* Better stat display with improved typography */
+/* Force readable stat displays */
 .stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--color-text-primary);
-    line-height: 1;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    color: #1e293b !important;
+    line-height: 1.1 !important;
     display: block;
 }
 
 .stat-label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--color-text-tertiary);
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-top: 0.25rem;
+    margin-top: 0.5rem !important;
     display: block;
 }
 
-/* Enhanced mobile header styles */
+/* Force high contrast mobile elements */
 .mobile-header {
-    background: var(--color-bg-card);
-    border-bottom: 1px solid var(--color-border-light);
-    box-shadow: var(--shadow-sm);
+    background: #ffffff !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+    padding: 1rem !important;
 }
 
 .mobile-header h1 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--color-text-primary);
+    font-size: 1.5rem !important;
+    font-weight: 800 !important;
+    color: #1e293b !important;
 }
 
-/* Better content spacing */
+/* Force better content cards */
 .content-grid .recommendation-card,
 .content-grid .parlay-card {
-    background: var(--color-bg-card);
-    border: 1px solid var(--color-border-light);
-    border-radius: var(--radius-lg);
-    padding: 1.25rem;
-    margin-bottom: 1rem;
-    box-shadow: var(--shadow-sm);
+    background: #ffffff !important;
+    border: 2px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
     transition: all 0.2s ease;
 }
 
 .content-grid .recommendation-card:hover,
 .content-grid .parlay-card:hover {
-    box-shadow: var(--shadow-md);
-    border-color: var(--color-primary);
-    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+    border-color: #2563eb !important;
+    transform: translateY(-2px);
+}
+
+/* Force readable team names and game info */
+.team-name, .game-info, .matchup {
+    color: #1e293b !important;
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+}
+
+/* Override any remaining low-contrast elements */
+.filter-badge, .tag, .chip {
+    background-color: #e2e8f0 !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1rem !important;
+}
+
+.filter-badge.active, .tag.active, .chip.active {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+}
+
+/* Force high contrast on any remaining elements */
+.prediction, .recommendation, .analysis {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 1rem !important;
+}
+
+/* Override any neutral or gray text */
+[class*="text-neutral"], [class*="text-gray"], 
+[style*="color: #6b7280"], [style*="color: #9ca3af"] {
+    color: #1e293b !important;
+}
+
+/* Override any low-contrast backgrounds */
+[class*="bg-neutral"], [class*="bg-gray"], 
+[style*="background-color: #f9fafb"], [style*="background-color: #f3f4f6"] {
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* Force readable select dropdowns */
+select, option {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    border: 2px solid #cbd5e1 !important;
+    font-size: 16px !important;
+    padding: 0.75rem !important;
+}
+
+/* Force readable inputs */
+input[type="text"], input[type="number"], textarea {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    border: 2px solid #cbd5e1 !important;
+    font-size: 16px !important;
+    padding: 0.75rem !important;
+}
+
+input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:focus {
+    border-color: #2563eb !important;
+    outline: 2px solid #2563eb !important;
+    outline-offset: 2px !important;
 }
