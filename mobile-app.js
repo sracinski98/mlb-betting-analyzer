@@ -402,14 +402,13 @@ class MobileMLBApp {
         document.querySelectorAll(`[data-tab="${tabName}"], [data-nav="${tabName}"]`).forEach(btn => {
             btn.classList.add('active');
         });
-        
+
         const targetPanel = document.getElementById(tabName);
         if (targetPanel) {
             targetPanel.classList.add('active');
-            targetPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-        
-        this.currentTab = tabName;
+            // Remove problematic scroll behavior that jumps to bottom
+            // targetPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }        this.currentTab = tabName;
         
         // Save preference
         this.userPreferences.lastTab = tabName;
@@ -449,7 +448,8 @@ class MobileMLBApp {
             const recommendations = results.recommendations || [];
             const parlays = results.parlays || [];
             
-            console.log(`Organizing data: ${recommendations.length} recommendations, ${parlays.length} parlays`);
+            console.log(`📊 DEBUGGING: Organizing data - ${recommendations.length} recommendations, ${parlays.length} parlays`);
+            console.log('Raw parlays data:', parlays);
             
             // Categorize recommendations by type
             let quickPicks = recommendations.filter(r => 
@@ -476,16 +476,25 @@ class MobileMLBApp {
                 playerProps = playerProps.concat(recommendations.slice(-4)); // Last few as player props
             }
             
-            console.log(`Organized: ${quickPicks.length} quick picks, ${teamBets.length} team bets, ${playerProps.length} player props, ${parlays.length} parlays`);
+            // PARLAY DEBUGGING
+            console.log(`🎯 PARLAYS DEBUG: ${parlays.length} parlays found`);
+            if (parlays.length > 0) {
+                console.log('First parlay structure:', JSON.stringify(parlays[0], null, 2));
+            }
             
-            return Object.assign({}, results, {
+            console.log(`✅ FINAL: ${quickPicks.length} quick picks, ${teamBets.length} team bets, ${playerProps.length} player props, ${parlays.length} parlays`);
+            
+            const organizedData = Object.assign({}, results, {
                 quickPicks: quickPicks,
                 teamBets: teamBets,
                 playerProps: playerProps,
                 parlays: parlays
             });
+            
+            console.log('📤 ORGANIZED DATA:', organizedData);
+            return organizedData;
         } catch (error) {
-            console.error('Error organizing data for mobile:', error);
+            console.error('❌ Error organizing data for mobile:', error);
             // Fallback: return original results with basic organization
             const recommendations = results.recommendations || [];
             return Object.assign({}, results, {
@@ -622,9 +631,19 @@ class MobileMLBApp {
         
         console.log(`📊 Displaying ${parlays?.length || 0} parlays`);
         
+        // EMERGENCY: If no parlays, try to get from currentData.parlays directly
         if (!parlays || parlays.length === 0) {
-            container.innerHTML = this.getEmptyState('No parlays match your current filters');
-            return;
+            console.log('🔍 No parlays in filtered data, checking original data...');
+            const originalParlays = this.currentData?.parlays || [];
+            console.log(`Found ${originalParlays.length} parlays in original data`);
+            
+            if (originalParlays.length > 0) {
+                console.log('📊 Using original parlays data');
+                parlays = originalParlays;
+            } else {
+                container.innerHTML = this.getEmptyState('No parlays available yet. Try running a new analysis!');
+                return;
+            }
         }
         
         // Debug first parlay structure

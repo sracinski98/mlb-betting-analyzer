@@ -77,22 +77,23 @@ class BetTracker {
     addTrackButtons() {
         // Wait for recommendations to load, then add track buttons
         setTimeout(() => {
-            const recommendations = document.querySelectorAll('.recommendation-card');
+            const recommendations = document.querySelectorAll('.recommendation-card, .parlay-card');
             recommendations.forEach((card, index) => {
                 if (!card.querySelector('.track-bet-btn')) {
                     const trackBtn = document.createElement('button');
                     trackBtn.className = 'track-bet-btn';
-                    trackBtn.textContent = '📊 Track';
+                    trackBtn.textContent = card.classList.contains('parlay-card') ? '📊 Track Parlay' : '📊 Track';
                     trackBtn.addEventListener('click', (e) => {
                         e.preventDefault();
                         this.trackBet(card, index);
                     });
                     
-                    const actions = card.querySelector('.recommendation-actions') || card;
+                    const actions = card.querySelector('.recommendation-actions') || 
+                                   card.querySelector('.card-footer') || card;
                     actions.appendChild(trackBtn);
                 }
             });
-        }, 1000);
+        }, 1500); // Increased delay to ensure parlays are loaded
     }
 
     trackBet(card, index) {

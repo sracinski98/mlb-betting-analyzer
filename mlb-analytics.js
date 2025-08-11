@@ -626,25 +626,25 @@ class MLBAnalyticsEngine {
             ['medium-high', 'medium'].includes(r.confidence)
         );
         const allQualityBets = recommendations.filter(r => 
-            r.score >= 5.0 // Score-based filtering for more options
+            (r.score && r.score >= 4.5) || r.finalScore >= 4.5 // Lower threshold for more parlays
         );
         
         console.log(`Parlay Generation: ${highConfBets.length} high-conf, ${mediumConfBets.length} medium-conf, ${allQualityBets.length} total quality bets`);
         
-        // FALLBACK: If not enough quality bets, lower the threshold
+        // FALLBACK: If not enough quality bets, lower the threshold progressively
         let workingBets = allQualityBets;
         if (workingBets.length < 4) {
-            workingBets = recommendations.filter(r => r.score >= 4.0);
+            workingBets = recommendations.filter(r => (r.score && r.score >= 4.0) || r.finalScore >= 4.0);
             console.log(`Lowered threshold: ${workingBets.length} bets with score >= 4.0`);
         }
         if (workingBets.length < 4) {
-            workingBets = recommendations.filter(r => r.score >= 3.0);
+            workingBets = recommendations.filter(r => (r.score && r.score >= 3.0) || r.finalScore >= 3.0);
             console.log(`Lowered threshold again: ${workingBets.length} bets with score >= 3.0`);
         }
         
         // EMERGENCY FALLBACK: Always ensure we have some bets to work with
         if (workingBets.length < 2) {
-            workingBets = recommendations.slice(0, 6); // Take top 6 regardless of score
+            workingBets = recommendations.slice(0, 8); // Take top 8 regardless of score
             console.log(`Emergency fallback: Using top ${workingBets.length} recommendations`);
         }
         
@@ -657,7 +657,10 @@ class MLBAnalyticsEngine {
                     
                     // Avoid same game conflicting bets
                     if (bet1.gameId !== bet2.gameId) {
-                        const avgScore = (bet1.score + bet2.score) / 2;
+                        const score1 = bet1.score || bet1.finalScore || 5.0;
+                        const score2 = bet2.score || bet2.finalScore || 5.0;
+                        const avgScore = (score1 + score2) / 2;
+                        
                         parlays.push({
                             legs: [bet1, bet2],
                             type: '2-leg parlay',
@@ -665,7 +668,9 @@ class MLBAnalyticsEngine {
                             riskLevel: avgScore >= 7.0 ? 'low' : avgScore >= 5.5 ? 'medium' : 'high',
                             expectedOdds: '+260',
                             reasoning: `Two quality bets (avg score: ${avgScore.toFixed(1)}/10) from different games`,
-                            avgScore: avgScore
+                            avgScore: avgScore,
+                            score: avgScore, // Ensure score property is set
+                            confidence: avgScore >= 7.0 ? 'high' : avgScore >= 5.5 ? 'medium' : 'low'
                         });
                     }
                 }
