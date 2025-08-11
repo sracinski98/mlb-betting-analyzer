@@ -370,12 +370,29 @@ class MLBAnalyticsEngine {
     analyzePlayerProps(games) {
         const recommendations = [];
         
+        // Team name mapping (abbreviation to full name)
+        const teamMapping = {
+            'LAD': 'Los Angeles Dodgers', 'SD': 'San Diego Padres', 'ATL': 'Atlanta Braves',
+            'NYY': 'New York Yankees', 'LAA': 'Los Angeles Angels', 'TOR': 'Toronto Blue Jays',
+            'NYM': 'New York Mets', 'PHI': 'Philadelphia Phillies', 'BOS': 'Boston Red Sox',
+            'HOU': 'Houston Astros', 'SF': 'San Francisco Giants', 'SEA': 'Seattle Mariners',
+            'TB': 'Tampa Bay Rays', 'CLE': 'Cleveland Guardians', 'MIN': 'Minnesota Twins',
+            'CHC': 'Chicago Cubs', 'STL': 'St. Louis Cardinals', 'MIL': 'Milwaukee Brewers',
+            'CIN': 'Cincinnati Reds', 'PIT': 'Pittsburgh Pirates', 'ARI': 'Arizona Diamondbacks',
+            'COL': 'Colorado Rockies', 'TEX': 'Texas Rangers', 'OAK': 'Oakland Athletics',
+            'KC': 'Kansas City Royals', 'DET': 'Detroit Tigers', 'CWS': 'Chicago White Sox',
+            'BAL': 'Baltimore Orioles', 'WSH': 'Washington Nationals', 'MIA': 'Miami Marlins'
+        };
+        
         games.forEach(game => {
             const { gameId, awayTeam, homeTeam, venue } = game;
             
             // Analyze key players for each team
             Object.entries(this.playerDatabase).forEach(([playerName, playerData]) => {
-                if (playerData.team === awayTeam || playerData.team === homeTeam) {
+                const playerTeamName = teamMapping[playerData.team] || playerData.team;
+                
+                if (playerTeamName === awayTeam || playerTeamName === homeTeam) {
+                    console.log(`🎯 Analyzing player: ${playerName} (${playerData.team} → ${playerTeamName})`);
                     
                     // Hot streak analysis (Enhanced scoring)
                     if (playerData.hotStreak && playerData.avg >= 0.280) {
@@ -787,12 +804,32 @@ class MLBAnalyticsEngine {
             
             console.log(`📊 Generated ${allRecommendations.length} initial recommendations`);
             
+            // Debug: Show first few recommendations
+            if (allRecommendations.length > 0) {
+                console.log('🔍 Sample recommendations:');
+                allRecommendations.slice(0, 3).forEach((rec, i) => {
+                    console.log(`${i+1}. ${rec.betType} - ${rec.confidence} - ${rec.reason}`);
+                });
+            }
+            
             this.updateLoadingStep('step4');
             
             // Combine and score recommendations
             console.log("🎯 Scoring and ranking recommendations...");
             const finalRecommendations = this.scoreAndRankRecommendations(allRecommendations);
             console.log(`✅ Final recommendations: ${finalRecommendations.length}`);
+            
+            // Debug: Show breakdown by bet type
+            const teamBets = finalRecommendations.filter(r => !r.betType.includes('player_'));
+            const playerProps = finalRecommendations.filter(r => r.betType.includes('player_'));
+            console.log(`📊 Team bets: ${teamBets.length}, Player props: ${playerProps.length}`);
+            
+            // Debug: Show confidence breakdown
+            const confidenceBreakdown = {};
+            finalRecommendations.forEach(r => {
+                confidenceBreakdown[r.confidence] = (confidenceBreakdown[r.confidence] || 0) + 1;
+            });
+            console.log('🎯 Confidence breakdown:', confidenceBreakdown);
             
             console.log("🎰 Building parlay recommendations...");
             const parlayRecommendations = this.buildParlayRecommendations(finalRecommendations);
@@ -815,7 +852,9 @@ class MLBAnalyticsEngine {
                 weather,
                 odds,
                 totalOpportunities: finalRecommendations.length,
-                highConfidence: finalRecommendations.filter(r => r.confidence === 'high').length
+                highConfidence: finalRecommendations.filter(r => 
+                    ['elite', 'very-high', 'high'].includes(r.confidence)
+                ).length
             };
             
         } catch (error) {
