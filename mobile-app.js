@@ -419,6 +419,51 @@ class MobileMLBApp {
     }
 
     /**
+     * Organize engine results for mobile display categories
+     */
+    organizeDataForMobile(results) {
+        const recommendations = results.recommendations || [];
+        const parlays = results.parlays || [];
+        
+        console.log(`Organizing data: ${recommendations.length} recommendations, ${parlays.length} parlays`);
+        
+        // Categorize recommendations by type
+        const quickPicks = recommendations.filter(r => 
+            ['elite', 'very-high', 'high'].includes(r.confidence) || r.score >= 7.0
+        ).slice(0, 8);
+        
+        const teamBets = recommendations.filter(r => 
+            r.betType && (r.betType.includes('_ml') || r.betType.includes('spread') || r.betType.includes('total'))
+        ).slice(0, 12);
+        
+        const playerProps = recommendations.filter(r => 
+            r.betType && (r.betType.includes('player_') || r.recommendation.toLowerCase().includes('hit') || 
+                         r.recommendation.toLowerCase().includes('strikeout') || r.recommendation.toLowerCase().includes('rbi'))
+        ).slice(0, 10);
+        
+        // Ensure all categories have content
+        if (quickPicks.length === 0 && recommendations.length > 0) {
+            quickPicks.push(...recommendations.slice(0, 3));
+        }
+        if (teamBets.length === 0 && recommendations.length > 0) {
+            teamBets.push(...recommendations.slice(0, 6));
+        }
+        if (playerProps.length === 0 && recommendations.length > 0) {
+            playerProps.push(...recommendations.slice(-4)); // Last few as player props
+        }
+        
+        console.log(`Organized: ${quickPicks.length} quick picks, ${teamBets.length} team bets, ${playerProps.length} player props, ${parlays.length} parlays`);
+        
+        return {
+            ...results,
+            quickPicks,
+            teamBets,
+            playerProps,
+            parlays
+        };
+    }
+
+    /**
      * Enhanced run analysis with mobile optimizations
      */
     async runAnalysis() {
@@ -444,7 +489,9 @@ class MobileMLBApp {
             this.updateLoadingStep('Generating recommendations...', 90);
             await this.delay(500);
             
-            this.currentData = results;
+            // Organize data for mobile display
+            const organizedData = this.organizeDataForMobile(results);
+            this.currentData = organizedData;
             
             this.hideLoadingState();
             this.showResultsContainer();

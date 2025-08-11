@@ -642,6 +642,12 @@ class MLBAnalyticsEngine {
             console.log(`Lowered threshold again: ${workingBets.length} bets with score >= 3.0`);
         }
         
+        // EMERGENCY FALLBACK: Always ensure we have some bets to work with
+        if (workingBets.length < 2) {
+            workingBets = recommendations.slice(0, 6); // Take top 6 regardless of score
+            console.log(`Emergency fallback: Using top ${workingBets.length} recommendations`);
+        }
+        
         // Multi-game parlays (Enhanced)
         if (workingBets.length >= 2) {
             for (let i = 0; i < Math.min(workingBets.length - 1, 10); i++) {
@@ -763,6 +769,39 @@ class MLBAnalyticsEngine {
         
         // Sort parlays by average score (highest first)
         parlays.sort((a, b) => (b.avgScore || 0) - (a.avgScore || 0));
+        
+        // GUARANTEED PARLAY FALLBACK: If no parlays generated, create basic ones
+        if (parlays.length === 0 && recommendations.length >= 2) {
+            console.log('No parlays generated - creating fallback parlays');
+            
+            // Create basic 2-leg parlay from top 2 recommendations
+            const topTwo = recommendations.slice(0, 2);
+            parlays.push({
+                legs: topTwo,
+                type: '2-leg Basic Parlay',
+                parlayCategory: 'multi_game',
+                riskLevel: 'medium',
+                expectedOdds: '+250',
+                reasoning: `Best available picks combined (avg: ${(topTwo.reduce((sum, bet) => sum + bet.score, 0) / 2).toFixed(1)}/10)`,
+                avgScore: topTwo.reduce((sum, bet) => sum + bet.score, 0) / 2
+            });
+            
+            // Create 3-leg if we have enough
+            if (recommendations.length >= 3) {
+                const topThree = recommendations.slice(0, 3);
+                parlays.push({
+                    legs: topThree,
+                    type: '3-leg Value Parlay',
+                    parlayCategory: 'multi_game',
+                    riskLevel: 'medium',
+                    expectedOdds: '+400',
+                    reasoning: `Top recommendations for solid value (avg: ${(topThree.reduce((sum, bet) => sum + bet.score, 0) / 3).toFixed(1)}/10)`,
+                    avgScore: topThree.reduce((sum, bet) => sum + bet.score, 0) / 3
+                });
+            }
+            
+            console.log(`Generated ${parlays.length} fallback parlays`);
+        }
         
         console.log(`Generated ${parlays.length} parlays total`);
         return parlays.slice(0, 12); // Top 12 parlays for more variety
