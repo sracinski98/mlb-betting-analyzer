@@ -1189,8 +1189,124 @@ a:hover {
     background: #fef2f2;
 }
 
-.parlay-card.error .card-body {
-    text-align: center;
-    color: #dc2626;
+/* Unified Header Styles */
+/* === Settings Page Styles === */
+.settings-content {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.settings-section {
+    margin-bottom: 32px;
+    background: var(--color-bg-primary);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.settings-section h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 16px;
+}
+
+.setting-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-item label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.setting-item span {
+    font-size: 1rem;
+    color: var(--color-text-primary);
+}
+
+.setting-item select {
+    padding: 6px 12px;
+    border: 1px solid var(--color-border-medium);
+    border-radius: 4px;
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-size: 0.875rem;
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    margin-right: 16px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+}
+
+/* === End Settings Page Styles === */
+
+/* Unified Header Styles */
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: var(--color-bg-primary);
+    border-bottom: 1px solid var(--color-border-light);
+    padding: 12px 16px;
+}
+
+.app-header .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.app-header .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.app-header .logo h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.app-header .version {
+    font-size: 0.75rem;
     font-weight: 500;
+    color: var(--color-text-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--color-bg-tertiary);
+}
+
+.app-header .settings-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    font-size: 1.25rem;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.app-header .settings-btn:hover {
+    color: var(--color-text-primary);
 }

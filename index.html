@@ -12,61 +12,18 @@
 </head>
 <body>
     <div class="container">
-        <!-- Mobile Header -->
-        <header class="mobile-header">
-            <div class="header-main">
-                <div class="logo">
-                    <i class="fas fa-chart-line"></i>
-                    <h1>MLB Analytics</h1>
-                    <span class="version">v2.1</span>
-                </div>
-                <div class="header-actions">
-                    <button id="filtersToggle" class="btn btn-icon" aria-label="Filters">
-                        <i class="fas fa-filter"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <span class="stat-value" id="totalOpportunities">0</span>
-                    <span class="stat-label">Picks</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="highConfidence">0</span>
-                    <span class="stat-label">Elite</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="gamesAnalyzed">0</span>
-                    <span class="stat-label">Games</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="expertTrends">0</span>
-                    <span class="stat-label">Expert</span>
-                </div>
-            </div>
-        </header>
-
-        <!-- Desktop Header (preserved) -->
-        <header class="header desktop-only">
+        <!-- Unified Header -->
+        <header class="app-header">
             <div class="header-content">
                 <div class="logo">
                     <i class="fas fa-chart-line"></i>
-                    <h1>MLB Betting Analytics v2.1</h1>
-                    <span class="beta">Pro</span>
+                    <h1>MLB Analytics Pro</h1>
+                    <span class="version">v2.1</span>
                 </div>
-                <div class="header-stats">
-                    <div class="stat">
-                        <span class="stat-value" id="totalOpportunitiesDesktop">0</span>
-                        <span class="stat-label">Opportunities</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-value" id="highConfidenceDesktop">0</span>
-                        <span class="stat-label">High Confidence</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-value" id="gamesAnalyzedDesktop">0</span>
-                        <span class="stat-label">Games Today</span>
-                    </div>
+                <div class="header-actions">
+                    <a href="settings.html" class="btn btn-icon settings-btn" aria-label="Settings">
+                        <i class="fas fa-cog"></i>
+                    </a>
                 </div>
             </div>
         </header>

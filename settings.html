@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - MLB Analytics Pro</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="mobile-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <a href="index.html" class="back-btn">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    <h1>Settings</h1>
+                </div>
+            </div>
+        </header>
+
+        <main class="settings-content">
+            <div class="settings-section">
+                <h2>General</h2>
+                <div class="setting-item">
+                    <label>
+                        <span>Dark Mode</span>
+                        <input type="checkbox" id="darkMode">
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <span>Auto-refresh Data</span>
+                        <input type="checkbox" id="autoRefresh">
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h2>Notifications</h2>
+                <div class="setting-item">
+                    <label>
+                        <span>High Confidence Picks</span>
+                        <input type="checkbox" id="notifyHighConfidence">
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <span>Parlay Opportunities</span>
+                        <input type="checkbox" id="notifyParlays">
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h2>Data Display</h2>
+                <div class="setting-item">
+                    <label>
+                        <span>Default Sort Order</span>
+                        <select id="defaultSort">
+                            <option value="confidence">Confidence</option>
+                            <option value="value">Value</option>
+                            <option value="time">Game Time</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <span>Items Per Page</span>
+                        <select id="itemsPerPage">
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="settings.js"></script>
+</body>
+</html>
