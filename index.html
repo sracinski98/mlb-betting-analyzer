@@ -493,19 +493,6 @@
             </div>
         </div>
 
-        <!-- Error State -->
-        <div id="errorState" class="error-state" style="display: none;">
-            <div class="error-content">
-                <i class="fas fa-exclamation-circle"></i>
-                <h3>Analysis Error</h3>
-                <p id="errorMessage">Unable to complete analysis. Please try again.</p>
-                <button id="retryBtn" class="btn btn-primary">
-                    <i class="fas fa-redo"></i>
-                    Retry Analysis
-                </button>
-            </div>
-        </div>
-
         <!-- Footer -->
         <footer class="footer">
             <div class="footer-content">
@@ -528,9 +515,10 @@
     <script src="bet-tracker.js"></script>
     <script src="mlb-analytics.js"></script>
     <!-- Phase 2 Mobile-First Scripts -->
-    <script src="user-preferences.js"></script>
-    <script src="mobile-app.js"></script>
+    <script type="module" src="js/utils/dom-safety.js"></script>
+    <script type="module" src="user-preferences.js"></script>
+    <script type="module" src="mobile-app.js"></script>
     <!-- Legacy Desktop Support -->
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

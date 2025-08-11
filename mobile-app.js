@@ -2,16 +2,303 @@
  * Phase 2: Mobile-First Application Controller
  * Enhanced UX with mobile-responsive design, confidence filtering, and user preferences
  */
+import safeDOM from './js/utils/dom-safety.js';
 
 class MobileMLBApp {
+    // Private fields
+    #state;
+    #dom;
+    
+    // Required containers
+    static #requiredContainers = [
+        'quickPicksContent',
+        'teamBetsContent',
+        'playerPropsContent',
+        'parlaysContent',
+        'loadingState',
+        'errorState',
+        'errorMessage',
+        'welcomeState',
+        'resultsContainer',
+        'progressBar',
+        'loadingStep'
+    ];
+    
     constructor() {
-        this.engine = new MLBAnalyticsEngine();
-        this.currentData = null;
-        this.currentTab = 'quick-picks';
-        this.isAnalyzing = false;
-        this.isMobile = window.innerWidth <= 768;
+        this.#state = {
+            engine: null,
+            currentData: null,
+            currentTab: 'quick-picks',
+            isAnalyzing: false,
+            isMobile: window.innerWidth <= 768,
+            preferences: null,
+            containers: {}
+        };
         
-        // User preferences (Phase 2 feature)
+        this.#dom = safeDOM;    // Required containers
+    static #requiredContainers = [
+        'quickPicksContent',
+        'teamBetsContent',
+        'playerPropsContent',
+        'parlaysContent',
+        'loadingState',
+        'errorState',
+        'errorMessage',
+        'welcomeState',
+        'resultsContainer',
+        'progressBar',
+        'loadingStep'
+    ];
+
+    // Instance getters
+    get engine() { return this.#state.engine; }
+    get currentData() { return this.#state.currentData; }
+    get currentTab() { return this.#state.currentTab; }
+    get isAnalyzing() { return this.#state.isAnalyzing; }
+    get isMobile() { return this.#state.isMobile; }
+    get preferences() { return this.#state.preferences; }
+
+    constructor() {
+        // Begin async initialization
+        this.init().catch(error => {
+            console.error('Failed to initialize:', error);
+            this.showErrorState('Failed to initialize. Please refresh.');
+        });
+    }
+
+    // Core initialization
+    init = async () => {
+        try {
+            // Basic setup
+            this.isMobile = window.innerWidth <= 768;
+            this.safeDOM = SafeDOM;
+            
+            // Create engine and containers
+            await this.createEngine();
+            await this.initContainers();
+            
+            // Load preferences
+            this.preferences = this.loadUserPreferences();
+            
+            // Initialize features
+            await Promise.all([
+                this.setupEventListeners(),
+                this.setupMobileFeatures()
+            ]);
+            
+            // Setup filters
+            this.setupConfidenceFiltering();
+            
+            // Apply preferences
+            this.applyUserPreferences();
+            
+            // Add resize handler
+            window.addEventListener('resize', this.handleResize);
+            
+            // Show initial state
+            this.showWelcomeState();
+            
+            return true;
+        } catch (error) {
+            console.error('Initialization error:', error);
+            throw error;
+        }
+    };
+
+    // Engine creation
+    createEngine = async () => {
+        this.engine = await new MLBAnalyticsEngine();
+    };
+
+    // Container initialization
+    initContainers = async () => {
+        await Promise.all(this.requiredContainers.map(id => 
+            this.safeDOM.ensureContainer(id).then(container => {
+                this.containers[id] = container;
+                return container;
+            })
+        ));
+    };
+    }
+
+    async #initializeApp() {
+        // Initialize engine
+        this.#state.engine = await new MLBAnalyticsEngine();
+        
+        // Initialize DOM containers
+        await this.#initContainers();
+        
+        // Load user preferences
+        this.#state.preferences = this.loadUserPreferences();
+        
+        // Start application
+        await this.#initialize();
+        
+        // Show welcome state
+        this.showWelcomeState();
+        
+        console.log('Application initialized successfully');
+    }
+    
+    async #initContainers() {
+        await Promise.all(this.#requiredContainers.map(id => {
+            const container = SafeDOM.ensureContainer(id);
+            if (!container) {
+                throw new Error(`Failed to ensure container: ${id}`);
+            }
+            this.#state.containers[id] = container;
+            return container;
+        }));
+    }
+    
+    initializeApp = async () => {
+        try {
+            // Initialize the engine
+            this.state.engine = await new MLBAnalyticsEngine();
+            
+            // Initialize containers
+            await this.initContainers();
+            
+            // Load preferences
+            this.state.preferences = this.loadUserPreferences();
+            
+            // Setup core functionality
+            await this.setupEventListeners();
+            await this.setupMobileFeatures();
+            this.setupConfidenceFiltering();
+            
+            // Apply preferences
+            this.applyUserPreferences();
+            
+            // Add resize listener
+            window.addEventListener('resize', () => this.handleResize());
+            
+            // Show initial state
+            this.showWelcomeState();
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to initialize app:', error);
+            throw error;
+        }
+    }
+    
+    initContainers = async () => {
+        await Promise.all(this.requiredContainers.map(id => {
+            const container = this.safeDOM.ensureContainer(id);
+            if (!container) {
+                throw new Error(`Failed to ensure container: ${id}`);
+            }
+            this.state.containers[id] = container;
+            return container;
+        }));
+    }
+    
+    setupEventListeners = async () => {
+        // Implementation for setting up event listeners
+    }
+    
+    setupMobileFeatures = async () => {
+        await Promise.all([
+            this.setupSwipeGestures(),
+            this.setupPullToRefresh(),
+            this.setupMobileKeyboard()
+        ]);
+    }
+    
+    setupSwipeGestures = async () => {
+        // Implementation for swipe gestures
+    }
+    
+    setupPullToRefresh = async () => {
+        // Implementation for pull to refresh
+    }
+    
+    setupMobileKeyboard = async () => {
+        // Implementation for mobile keyboard handling
+    }
+    
+    setupConfidenceFiltering = () => {
+        // Setup confidence filtering system
+        this.confidenceFilters = {
+            'all': { min: 0, max: 10, label: 'All Levels' },
+            'elite': { min: 9.0, max: 10, label: 'Elite (9.0+)' },
+            'very-high': { min: 8.0, max: 8.9, label: 'Very High (8.0+)' },
+            'high': { min: 7.0, max: 7.9, label: 'High (7.0+)' },
+            'medium-high': { min: 6.0, max: 6.9, label: 'Medium-High (6.0+)' },
+            'medium': { min: 5.0, max: 5.9, label: 'Medium (5.0+)' }
+        };
+    }
+    
+    showWelcomeState = () => {
+        // Hide all containers
+        Object.keys(this.containers).forEach(id => {
+            const container = this.containers[id];
+            if (container) {
+                container.classList.add('hidden');
+            }
+        });
+        
+        // Show welcome state
+        const welcomeState = this.containers.welcomeState;
+        if (welcomeState) {
+            welcomeState.classList.remove('hidden');
+        }
+    };
+    
+    showErrorState = (message) => {
+        // Hide all containers
+        Object.keys(this.containers).forEach(id => {
+            const container = this.containers[id];
+            if (container) {
+                container.classList.add('hidden');
+            }
+        });
+        
+        // Show error state and message
+        const errorState = this.containers.errorState;
+        const errorMessage = this.containers.errorMessage;
+        
+        if (errorState) {
+            errorState.classList.remove('hidden');
+        }
+        
+        if (errorMessage) {
+            errorMessage.textContent = message;
+        }
+    };
+    constructor() {
+        this.#isMobile = window.innerWidth <= 768;
+        this.#safeDOM = SafeDOM;
+
+        // Initialize the app
+        this.#initializeApp();
+    }
+    
+    #initializeApp = async () => {
+        try {
+            this.#state.engine = await new MLBAnalyticsEngine();
+            
+            // Create any missing containers safely
+            const containers = await Promise.all(this.constructor.#requiredContainers.map(id => {
+                const container = this.#dom.ensureContainer(id);
+                if (!container) {
+                    throw new Error(`Failed to ensure container: ${id}`);
+                }
+                this.#state.containers[id] = container;
+                return container;
+            }));
+
+            // Initialize the application
+            await this.init();
+            
+            return containers;
+        } catch (error) {
+            console.error('Failed to initialize app:', error);
+            this.showErrorState('Failed to initialize application');
+            throw error;
+        }
+    };        // User preferences (Phase 2 feature)
         this.userPreferences = this.loadUserPreferences();
         
         // Mobile-specific state
@@ -22,41 +309,40 @@ class MobileMLBApp {
         this.init();
     }
 
-    init() {
-        this.setupEventListeners();
-        this.setupMobileFeatures();
-        this.setupConfidenceFiltering();
-        this.applyUserPreferences();
-        this.showWelcomeState();
+    init = async () => {
+        // Setup core functionality
+        await Promise.all([
+            this.setupEventListeners(),
+            this.setupMobileFeatures(),
+            this.setupConfidenceFiltering(),
+            this.applyUserPreferences()
+        ]);
+
+        // Show welcome state
+        await this.showWelcomeState();
         
         // Add resize listener for responsive behavior
         window.addEventListener('resize', () => this.handleResize());
+        
+        return true;
     }
 
     /**
      * Setup mobile-specific event listeners
      */
-    setupEventListeners() {
-        // Primary action buttons
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const startAnalysisBtn = document.getElementById('startAnalysisBtn');
-        const refreshBtn = document.getElementById('refreshBtn');
-        const retryBtn = document.getElementById('retryBtn');
+    setupEventListeners = () => {
+        // Main action buttons
+        ['analyzeBtn', 'startAnalysisBtn'].forEach(id => {
+            const btn = this.safeDOM.addListener(id, 'click', () => this.runAnalysis());
+        });
         
-        // Desktop buttons (if they exist)
-        const analyzeBtnDesktop = document.getElementById('analyzeBtn');
-        const refreshBtnDesktop = document.getElementById('refreshBtn');
-        
-        if (analyzeBtn) analyzeBtn.addEventListener('click', () => this.runAnalysis());
-        if (startAnalysisBtn) startAnalysisBtn.addEventListener('click', () => this.runAnalysis());
-        if (refreshBtn) refreshBtn.addEventListener('click', () => this.refreshData());
-        if (retryBtn) retryBtn.addEventListener('click', () => this.runAnalysis());
+        // Refresh and retry buttons
+        ['refreshBtn', 'retryBtn'].forEach(id => {
+            const btn = this.safeDOM.addListener(id, 'click', () => this.refreshData());
+        });
         
         // Mobile filters toggle
-        const filtersToggle = document.getElementById('filtersToggle');
-        if (filtersToggle) {
-            filtersToggle.addEventListener('click', () => this.toggleFilters());
-        }
+        this.safeDOM.addListener('filtersToggle', 'click', () => this.toggleFilters());
         
         // Filter controls
         const confidenceFilter = document.getElementById('confidenceFilter');
@@ -107,7 +393,7 @@ class MobileMLBApp {
     /**
      * Setup mobile-specific features
      */
-    setupMobileFeatures() {
+    setupMobileFeatures = async () => {
         // Touch gestures for tab switching
         this.setupSwipeGestures();
         
@@ -124,7 +410,7 @@ class MobileMLBApp {
     /**
      * Setup swipe gestures for mobile tab navigation
      */
-    setupSwipeGestures() {
+    setupSwipeGestures = () => {
         const tabContent = document.querySelector('.tab-content');
         if (!tabContent) return;
         
@@ -162,7 +448,7 @@ class MobileMLBApp {
     /**
      * Setup pull-to-refresh functionality
      */
-    setupPullToRefresh() {
+    setupPullToRefresh = () => {
         let startY = 0;
         let currentY = 0;
         let isPulling = false;
@@ -198,7 +484,7 @@ class MobileMLBApp {
     /**
      * Setup mobile keyboard handling
      */
-    setupMobileKeyboard() {
+    setupMobileKeyboard = () => {
         // Adjust viewport when mobile keyboard appears
         if (this.isMobile) {
             let initialHeight = window.innerHeight;
@@ -220,7 +506,7 @@ class MobileMLBApp {
     /**
      * Setup confidence filtering system
      */
-    setupConfidenceFiltering() {
+    setupConfidenceFiltering = () => {
         this.confidenceFilters = {
             'all': { min: 0, max: 10, label: 'All Levels' },
             'elite': { min: 9.0, max: 10, label: 'Elite (9.0+)' },
@@ -243,7 +529,7 @@ class MobileMLBApp {
     /**
      * Toggle mobile filters panel
      */
-    toggleFilters() {
+    toggleFilters = () => {
         const filtersPanel = document.getElementById('filtersPanel');
         if (!filtersPanel) return;
         
@@ -261,7 +547,7 @@ class MobileMLBApp {
     /**
      * Apply active filters to displayed data
      */
-    applyFilters() {
+    applyFilters = () => {
         if (!this.currentData) return;
         
         const confidenceFilter = document.getElementById('confidenceFilter')?.value || 'all';
@@ -281,7 +567,7 @@ class MobileMLBApp {
     /**
      * Filter and redisplay data based on current filters
      */
-    filterAndDisplayData(confidenceFilter, betTypeFilter) {
+    filterAndDisplayData = (confidenceFilter, betTypeFilter) => {
         const confidenceRange = this.confidenceFilters[confidenceFilter];
         
         // Filter each data category
@@ -305,7 +591,7 @@ class MobileMLBApp {
     /**
      * Filter recommendations array based on criteria
      */
-    filterRecommendations(recommendations, confidenceRange, betTypeFilter) {
+    filterRecommendations = (recommendations, confidenceRange, betTypeFilter) => {
         if (!recommendations) return [];
         
         return recommendations.filter(rec => {
@@ -347,7 +633,7 @@ class MobileMLBApp {
     /**
      * Clear all active filters
      */
-    clearAllFilters() {
+    clearAllFilters = () => {
         document.getElementById('confidenceFilter').value = 'all';
         document.getElementById('betTypeFilter').value = 'all';
         
@@ -361,7 +647,7 @@ class MobileMLBApp {
     /**
      * Update filter indicator badge
      */
-    updateFilterIndicator() {
+    updateFilterIndicator = () => {
         const filtersToggle = document.getElementById('filtersToggle');
         if (!filtersToggle) return;
         
@@ -388,7 +674,7 @@ class MobileMLBApp {
     /**
      * Switch to specific tab
      */
-    switchTab(tabName) {
+    switchTab = (tabName) => {
         // Store current scroll position to maintain it
         const currentScrollY = window.scrollY;
         
@@ -433,7 +719,7 @@ class MobileMLBApp {
     /**
      * Switch to next tab (swipe gesture)
      */
-    switchToNextTab() {
+    switchToNextTab = () => {
         const tabs = ['quick-picks', 'team-bets', 'player-props', 'parlays', 'analytics'];
         const currentIndex = tabs.indexOf(this.currentTab);
         const nextIndex = (currentIndex + 1) % tabs.length;
@@ -443,7 +729,7 @@ class MobileMLBApp {
     /**
      * Switch to previous tab (swipe gesture)
      */
-    switchToPreviousTab() {
+    switchToPreviousTab = () => {
         const tabs = ['quick-picks', 'team-bets', 'player-props', 'parlays', 'analytics'];
         const currentIndex = tabs.indexOf(this.currentTab);
         const prevIndex = currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
@@ -453,7 +739,7 @@ class MobileMLBApp {
     /**
      * Organize engine results for mobile display categories
      */
-    organizeDataForMobile(results) {
+    organizeDataForMobile = (results) => {
         try {
             const recommendations = results.recommendations || [];
             const parlays = results.parlays || [];
@@ -519,11 +805,36 @@ class MobileMLBApp {
     /**
      * Enhanced run analysis with mobile optimizations
      */
-    async runAnalysis() {
+    runAnalysis = async () => {
         if (this.isAnalyzing) return;
         
         try {
             this.isAnalyzing = true;
+            
+            // Ensure all required containers exist before proceeding
+            const containers = {
+                loading: document.getElementById('loadingState'),
+                welcome: document.getElementById('welcomeState'),
+                results: document.getElementById('resultsContainer'),
+                error: document.getElementById('errorState')
+            };
+            
+            // Create containers if they don't exist
+            if (!containers.loading) {
+                const loadingContainer = document.createElement('div');
+                loadingContainer.id = 'loadingState';
+                document.body.appendChild(loadingContainer);
+                containers.loading = loadingContainer;
+            }
+            
+            if (!containers.error) {
+                const errorContainer = document.createElement('div');
+                errorContainer.id = 'errorState';
+                errorContainer.innerHTML = '<div id="errorMessage"></div>';
+                document.body.appendChild(errorContainer);
+                containers.error = errorContainer;
+            }
+            
             this.showLoadingState();
             this.hideWelcomeState();
             
@@ -573,7 +884,7 @@ class MobileMLBApp {
     /**
      * Update loading progress with mobile-friendly messaging
      */
-    updateLoadingStep(message, progress = 0) {
+    updateLoadingStep = (message, progress = 0) => {
         const loadingStep = document.getElementById('loadingStep');
         const progressBar = document.getElementById('progressBar');
         
@@ -584,23 +895,51 @@ class MobileMLBApp {
     /**
      * Enhanced display functions with mobile optimizations
      */
-    displayQuickPicks(picks) {
+    displayQuickPicks = (picks) => {
         const container = document.getElementById('quickPicksContent');
-        if (!container) return;
-        
-        if (!picks || picks.length === 0) {
-            container.innerHTML = this.getEmptyState('No quick picks match your current filters');
+        if (!container) {
+            console.warn('Quick picks container not found');
             return;
         }
         
-        container.innerHTML = `
-            <div class="recommendations-grid">
-                ${picks.slice(0, 10).map(pick => this.createMobileRecommendationCard(pick)).join('')}
-            </div>
-        `;
+        try {
+            // Create a temporary div to validate the content before inserting
+            const tempDiv = document.createElement('div');
+            
+            if (!picks || picks.length === 0) {
+                tempDiv.appendChild(this.createEmptyState('No quick picks match your current filters'));
+                this.safeDOM.setHTML('quickPicksContent', tempDiv.innerHTML);
+                return;
+            }
+            
+            const gridContent = picks.slice(0, 10)
+                .map(pick => {
+                    try {
+                        return this.createMobileRecommendationCard(pick);
+                    } catch (err) {
+                        console.warn('Error creating recommendation card:', err);
+                        return '';
+                    }
+                })
+                .filter(card => card !== '')
+                .join('');
+                
+            if (!gridContent) {
+                tempDiv.appendChild(this.createEmptyState('Unable to display picks at this time'));
+                this.safeDOM.setHTML('quickPicksContent', tempDiv.innerHTML);
+                return;
+            }
+            
+            tempDiv.innerHTML = `
+                <div class="recommendations-grid">
+                    ${gridContent}
+                </div>
+            `;
+            
+            this.safeDOM.setHTML('quickPicksContent', tempDiv.innerHTML);
     }
 
-    displayTeamBets(bets) {
+    displayTeamBets = (bets) => {
         const container = document.getElementById('teamBetsContent');
         if (!container) return;
         
@@ -614,9 +953,9 @@ class MobileMLBApp {
                 ${bets.slice(0, 20).map(bet => this.createMobileRecommendationCard(bet)).join('')}
             </div>
         `;
-    }
+    };
 
-    displayPlayerProps(props) {
+    displayPlayerProps = (props) => {
         const container = document.getElementById('playerPropsContent');
         if (!container) return;
         
@@ -630,9 +969,9 @@ class MobileMLBApp {
                 ${props.slice(0, 15).map(prop => this.createMobileRecommendationCard(prop)).join('')}
             </div>
         `;
-    }
+    };
 
-    displayParlays(parlays) {
+    displayParlays = (parlays) => {
         const container = document.getElementById('parlaysContent');
         if (!container) {
             console.error('❌ Parlays container not found!');
@@ -673,7 +1012,7 @@ class MobileMLBApp {
     /**
      * Create mobile-optimized recommendation card
      */
-    createMobileRecommendationCard(rec) {
+    createMobileRecommendationCard = (rec) => {
         // Enhanced metrics like dimers.com
         const probabilityScore = rec.probabilityScore || Math.min(Math.max((rec.score || 5) * 10, 35), 85);
         const edge = rec.edge || Math.max((rec.score || 5) - 5, 0.5);
@@ -740,7 +1079,7 @@ class MobileMLBApp {
     /**
      * Create mobile-optimized parlay card
      */
-    createMobileParlayCard(parlay) {
+    createMobileParlayCard = (parlay) => {
         try {
             const confidence = this.getConfidenceInfo(parlay.avgScore || parlay.score || parlay.confidence || 5.0);
             
@@ -815,7 +1154,7 @@ class MobileMLBApp {
     /**
      * Get confidence information with mobile-friendly display
      */
-    getConfidenceInfo(score) {
+    getConfidenceInfo = (score) => {
         const numScore = parseFloat(score) || 0;
         
         if (numScore >= 9.0) return { class: 'elite', emoji: '🔥', label: 'Elite' };
@@ -829,7 +1168,7 @@ class MobileMLBApp {
     /**
      * Get factor tags for recommendation
      */
-    getFactorTags(rec) {
+    getFactorTags = (rec) => {
         const tags = [];
         
         if (rec.expertTrends) tags.push('<span class="factor-tag expert">Expert Consensus</span>');
@@ -844,7 +1183,7 @@ class MobileMLBApp {
     /**
      * Bet tracking modal setup
      */
-    setupBetTrackingModal() {
+    setupBetTrackingModal = () => {
         // Track bet buttons
         document.addEventListener('click', (e) => {
             if (e.target.closest('.track-bet-btn')) {
@@ -881,7 +1220,7 @@ class MobileMLBApp {
     /**
      * Show bet tracking modal
      */
-    showBetTrackingModal(betData, isParlay = false) {
+    showBetTrackingModal = (betData, isParlay = false) => {
         const modal = document.getElementById('betTrackingModal');
         if (!modal) return;
         
@@ -901,7 +1240,7 @@ class MobileMLBApp {
     /**
      * Hide bet tracking modal
      */
-    hideBetTrackingModal() {
+    hideBetTrackingModal = () => {
         const modal = document.getElementById('betTrackingModal');
         if (!modal) return;
         
@@ -916,7 +1255,7 @@ class MobileMLBApp {
     /**
      * Submit bet tracking
      */
-    submitBetTracking() {
+    submitBetTracking = () => {
         const stake = parseFloat(document.getElementById('stakeAmount').value) || 0;
         const notes = document.getElementById('betNotes').value || '';
         
@@ -944,7 +1283,7 @@ class MobileMLBApp {
     /**
      * User preferences management
      */
-    loadUserPreferences() {
+    loadUserPreferences = () => {
         try {
             const stored = localStorage.getItem('mlb_user_preferences');
             return stored ? JSON.parse(stored) : {
@@ -963,7 +1302,7 @@ class MobileMLBApp {
         }
     }
 
-    saveUserPreferences() {
+    saveUserPreferences = () => {
         try {
             localStorage.setItem('mlb_user_preferences', JSON.stringify(this.userPreferences));
         } catch (error) {
@@ -971,7 +1310,7 @@ class MobileMLBApp {
         }
     }
 
-    applyUserPreferences() {
+    applyUserPreferences = () => {
         // Restore last tab
         if (this.userPreferences.lastTab) {
             this.switchTab(this.userPreferences.lastTab);
@@ -990,7 +1329,7 @@ class MobileMLBApp {
     /**
      * Utility functions
      */
-    formatBetType(type) {
+    formatBetType = (type) => {
         const typeMap = {
             'moneyline': 'ML',
             'runline': 'RL', 
@@ -1001,13 +1340,25 @@ class MobileMLBApp {
         return typeMap[type] || type;
     }
 
-    getEmptyState(message) {
-        return `
-            <div class="empty-state">
-                <i class="fas fa-search"></i>
-                <p>${message}</p>
-            </div>
-        `;
+    createEmptyState = (message) => {
+        const div = document.createElement('div');
+        div.className = 'empty-state';
+        
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-search';
+        div.appendChild(icon);
+        
+        const p = document.createElement('p');
+        p.textContent = message;
+        div.appendChild(p);
+        
+        return div;
+    }
+    
+    getEmptyState = (message) => {
+        const div = document.createElement('div');
+        div.appendChild(this.createEmptyState(message));
+        return div.innerHTML;
     }
 
     showSuccessToast(message) {
@@ -1018,7 +1369,7 @@ class MobileMLBApp {
         this.showToast(message, 'error');
     }
 
-    showToast(message, type = 'info') {
+    showToast = (message, type = 'info') => {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
@@ -1035,11 +1386,11 @@ class MobileMLBApp {
         }, 3000);
     }
 
-    delay(ms) {
+    delay = (ms) => {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    handleResize() {
+    handleResize = () => {
         const newIsMobile = window.innerWidth <= 768;
         if (newIsMobile !== this.isMobile) {
             this.isMobile = newIsMobile;
@@ -1099,13 +1450,30 @@ class MobileMLBApp {
     }
 
     showErrorState(message) {
-        const errorState = document.getElementById('errorState');
-        const loadingState = document.getElementById('loadingState');
-        const errorMessage = document.getElementById('errorMessage');
-        
-        if (errorState) errorState.classList.remove('hidden');
-        if (loadingState) loadingState.classList.add('hidden');
-        if (errorMessage) errorMessage.textContent = message;
+        try {
+            // Ensure error container exists
+            const errorContainer = SafeDOM.ensureContainer('errorState');
+            if (!errorContainer) {
+                console.error('Could not create error container');
+                return;
+            }
+
+            // Create error message container if it doesn't exist
+            let errorMessage = document.getElementById('errorMessage');
+            if (!errorMessage) {
+                errorMessage = SafeDOM.createElement('errorState', 'div', { id: 'errorMessage' });
+            }
+
+            // Set the error message
+            SafeDOM.setText('errorMessage', message);
+
+            // Update visibility
+            SafeDOM.toggleClass('errorState', 'hidden', false);
+            SafeDOM.toggleClass('loadingState', 'hidden', true);
+            SafeDOM.toggleClass('resultsContainer', 'hidden', true);
+        } catch (error) {
+            console.error('Failed to show error state:', error);
+        }
     }
 
     updateHeaderStats(results) {
