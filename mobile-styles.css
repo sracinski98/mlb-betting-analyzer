@@ -594,49 +594,93 @@ a:hover {
 
 /* ===== CRITICAL READABILITY OVERRIDES ===== */
 
-/* Force high contrast on all major elements */
-body {
-    background-color: #ffffff !important;
-    color: #1e293b !important;
-    font-size: 16px !important;
-    line-height: 1.6 !important;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
+/* Mobile-first aggressive overrides for readability */
+@media screen and (max-width: 768px) {
+    /* Force high contrast on all major elements - MOBILE ONLY */
+    body {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        font-size: 16px !important;
+        line-height: 1.6 !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
+    }
+
+    /* Override any problematic background/text combinations - MOBILE ONLY */
+    .container, .content, .card, .recommendation-card, .parlay-card, 
+    .game-analysis, .stats-grid, .filters, .header, .mobile-header {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    /* Force readable text on all text elements - MOBILE ONLY */
+    h1, h2, h3, h4, h5, h6, p, span, div, label, button, a {
+        color: #1e293b !important;
+        font-weight: 500 !important;
+    }
+
+    /* High contrast buttons - MOBILE ONLY */
+    button, .btn {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+        border: 2px solid #2563eb !important;
+        font-weight: 600 !important;
+        padding: 0.75rem 1.5rem !important;
+        font-size: 16px !important;
+    }
+
+    button:hover, .btn:hover {
+        background-color: #1d4ed8 !important;
+        border-color: #1d4ed8 !important;
+    }
+
+    /* Force high contrast on stat displays - MOBILE ONLY */
+    .stat-value, .confidence-score, .probability {
+        color: #1e293b !important;
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+    }
 }
 
-/* Override any problematic background/text combinations */
-.container, .content, .card, .recommendation-card, .parlay-card, 
-.game-analysis, .stats-grid, .filters, .header, .mobile-header {
-    background-color: #ffffff !important;
-    color: #1e293b !important;
-    border: 1px solid #cbd5e1 !important;
-}
-
-/* Force readable text on all text elements */
-h1, h2, h3, h4, h5, h6, p, span, div, label, button, a {
-    color: #1e293b !important;
-    font-weight: 500 !important;
-}
-
-/* High contrast buttons */
-button, .btn {
-    background-color: #2563eb !important;
-    color: #ffffff !important;
-    border: 2px solid #2563eb !important;
-    font-weight: 600 !important;
-    padding: 0.75rem 1.5rem !important;
-    font-size: 16px !important;
-}
-
-button:hover, .btn:hover {
-    background-color: #1d4ed8 !important;
-    border-color: #1d4ed8 !important;
-}
-
-/* Force high contrast on stat displays */
-.stat-value, .confidence-score, .probability {
-    color: #1e293b !important;
-    font-size: 1.5rem !important;
-    font-weight: 700 !important;
+/* Desktop: Clean, polished styling without aggressive overrides */
+@media screen and (min-width: 769px) {
+    body {
+        background-color: var(--color-bg-secondary);
+        color: var(--color-text-primary);
+        font-size: 15px;
+        line-height: 1.5;
+    }
+    
+    .container, .content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .recommendation-card, .parlay-card {
+        background: var(--color-bg-card);
+        border: 1px solid var(--color-border-light);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .recommendation-card:hover, .parlay-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+    
+    button, .btn {
+        background-color: var(--color-primary);
+        color: var(--color-text-inverse);
+        border: 1px solid var(--color-primary);
+        padding: 0.5rem 1rem;
+        font-size: 14px;
+        border-radius: 6px;
+        font-weight: 500;
+    }
 }
 
 /* ===== ENHANCED READABILITY UTILITIES ===== */
@@ -645,12 +689,26 @@ button:hover, .btn:hover {
 .confidence-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.5rem 1rem !important;
     border-radius: 9999px;
-    font-size: 0.875rem !important;
     font-weight: 700 !important;
     line-height: 1.2;
     border: 2px solid !important;
+}
+
+/* Mobile confidence badges - larger and more prominent */
+@media screen and (max-width: 768px) {
+    .confidence-badge {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.875rem !important;
+    }
+}
+
+/* Desktop confidence badges - more subtle */
+@media screen and (min-width: 769px) {
+    .confidence-badge {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+    }
 }
 
 /* Force high contrast confidence badges */
@@ -658,159 +716,226 @@ button:hover, .btn:hover {
     background-color: #7c3aed !important;
     color: #ffffff !important;
     border-color: #7c3aed !important;
-    box-shadow: 0 4px 6px rgba(124, 58, 237, 0.4) !important;
 }
 
 .confidence-very-high {
     background-color: #059669 !important;
     color: #ffffff !important;
     border-color: #059669 !important;
-    box-shadow: 0 4px 6px rgba(5, 150, 105, 0.4) !important;
 }
 
 .confidence-high {
     background-color: #2563eb !important;
     color: #ffffff !important;
     border-color: #2563eb !important;
-    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.4) !important;
 }
 
 .confidence-medium-high {
     background-color: #d97706 !important;
     color: #ffffff !important;
     border-color: #d97706 !important;
-    box-shadow: 0 4px 6px rgba(217, 119, 6, 0.4) !important;
 }
 
 .confidence-medium {
     background-color: #4b5563 !important;
     color: #ffffff !important;
     border-color: #4b5563 !important;
-    box-shadow: 0 4px 6px rgba(75, 85, 99, 0.4) !important;
 }
 
 .confidence-low {
     background-color: #dc2626 !important;
     color: #ffffff !important;
     border-color: #dc2626 !important;
-    box-shadow: 0 4px 6px rgba(220, 38, 38, 0.4) !important;
 }
 
-/* Force readable stat displays */
-.stat-value {
-    font-size: 2rem !important;
-    font-weight: 800 !important;
-    color: #1e293b !important;
-    line-height: 1.1 !important;
-    display: block;
+/* Mobile-specific enhancements */
+@media screen and (max-width: 768px) {
+    .confidence-elite, .confidence-very-high, .confidence-high, 
+    .confidence-medium-high, .confidence-medium, .confidence-low {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    /* Force readable stat displays - MOBILE ONLY */
+    .stat-value {
+        font-size: 2rem !important;
+        font-weight: 800 !important;
+        color: #1e293b !important;
+        line-height: 1.1 !important;
+        display: block;
+    }
+
+    .stat-label {
+        font-size: 0.875rem !important;
+        font-weight: 600 !important;
+        color: #475569 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 0.5rem !important;
+        display: block;
+    }
+
+    /* Force better content cards - MOBILE ONLY */
+    .content-grid .recommendation-card,
+    .content-grid .parlay-card {
+        background: #ffffff !important;
+        border: 2px solid #cbd5e1 !important;
+        border-radius: 12px !important;
+        padding: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .content-grid .recommendation-card:hover,
+    .content-grid .parlay-card:hover {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+        border-color: #2563eb !important;
+        transform: translateY(-2px);
+    }
 }
 
-.stat-label {
-    font-size: 0.875rem !important;
-    font-weight: 600 !important;
-    color: #475569 !important;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.5rem !important;
-    display: block;
+/* Desktop-specific refined styling */
+@media screen and (min-width: 769px) {
+    .confidence-elite, .confidence-very-high, .confidence-high, 
+    .confidence-medium-high, .confidence-medium, .confidence-low {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        line-height: 1.2;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--color-text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 0.25rem;
+    }
 }
 
-/* Force high contrast mobile elements */
-.mobile-header {
-    background: #ffffff !important;
-    border-bottom: 2px solid #cbd5e1 !important;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-    padding: 1rem !important;
+/* Mobile-specific header and interaction overrides */
+@media screen and (max-width: 768px) {
+    /* Force high contrast mobile elements */
+    .mobile-header {
+        background: #ffffff !important;
+        border-bottom: 2px solid #cbd5e1 !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+        padding: 1rem !important;
+    }
+
+    .mobile-header h1 {
+        font-size: 1.5rem !important;
+        font-weight: 800 !important;
+        color: #1e293b !important;
+    }
+
+    /* Force readable team names and game info - MOBILE ONLY */
+    .team-name, .game-info, .matchup {
+        color: #1e293b !important;
+        font-weight: 600 !important;
+        font-size: 1.1rem !important;
+    }
+
+    /* Override any remaining low-contrast elements - MOBILE ONLY */
+    .filter-badge, .tag, .chip {
+        background-color: #e2e8f0 !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+        font-weight: 600 !important;
+        padding: 0.5rem 1rem !important;
+    }
+
+    .filter-badge.active, .tag.active, .chip.active {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+        border-color: #2563eb !important;
+    }
+
+    /* Force high contrast on any remaining elements - MOBILE ONLY */
+    .prediction, .recommendation, .analysis {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 1rem !important;
+    }
+
+    /* Force readable select dropdowns - MOBILE ONLY */
+    select, option {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 2px solid #cbd5e1 !important;
+        font-size: 16px !important;
+        padding: 0.75rem !important;
+    }
+
+    /* Force readable inputs - MOBILE ONLY */
+    input[type="text"], input[type="number"], textarea {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 2px solid #cbd5e1 !important;
+        font-size: 16px !important;
+        padding: 0.75rem !important;
+    }
+
+    input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:focus {
+        border-color: #2563eb !important;
+        outline: 2px solid #2563eb !important;
+        outline-offset: 2px !important;
+    }
+
+    /* Override any neutral or gray text - MOBILE ONLY */
+    [class*="text-neutral"], [class*="text-gray"], 
+    [style*="color: #6b7280"], [style*="color: #9ca3af"] {
+        color: #1e293b !important;
+    }
+
+    /* Override any low-contrast backgrounds - MOBILE ONLY */
+    [class*="bg-neutral"], [class*="bg-gray"], 
+    [style*="background-color: #f9fafb"], [style*="background-color: #f3f4f6"] {
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+    }
 }
 
-.mobile-header h1 {
-    font-size: 1.5rem !important;
-    font-weight: 800 !important;
-    color: #1e293b !important;
-}
+/* Desktop: Clean, refined styling without aggressive overrides */
+@media screen and (min-width: 769px) {
+    .team-name, .game-info, .matchup {
+        color: var(--color-text-primary);
+        font-weight: 500;
+        font-size: 1rem;
+    }
 
-/* Force better content cards */
-.content-grid .recommendation-card,
-.content-grid .parlay-card {
-    background: #ffffff !important;
-    border: 2px solid #cbd5e1 !important;
-    border-radius: 12px !important;
-    padding: 1.5rem !important;
-    margin-bottom: 1.5rem !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-    transition: all 0.2s ease;
-}
+    .filter-badge, .tag, .chip {
+        background-color: var(--color-bg-tertiary);
+        color: var(--color-text-secondary);
+        border: 1px solid var(--color-border-light);
+        font-weight: 500;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+    }
 
-.content-grid .recommendation-card:hover,
-.content-grid .parlay-card:hover {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
-    border-color: #2563eb !important;
-    transform: translateY(-2px);
-}
+    .filter-badge.active, .tag.active, .chip.active {
+        background-color: var(--color-primary);
+        color: var(--color-text-inverse);
+        border-color: var(--color-primary);
+    }
 
-/* Force readable team names and game info */
-.team-name, .game-info, .matchup {
-    color: #1e293b !important;
-    font-weight: 600 !important;
-    font-size: 1.1rem !important;
-}
+    select, option, input[type="text"], input[type="number"], textarea {
+        background-color: var(--color-bg-card);
+        color: var(--color-text-primary);
+        border: 1px solid var(--color-border-light);
+        font-size: 14px;
+        padding: 0.5rem;
+        border-radius: 4px;
+    }
 
-/* Override any remaining low-contrast elements */
-.filter-badge, .tag, .chip {
-    background-color: #e2e8f0 !important;
-    color: #1e293b !important;
-    border: 1px solid #cbd5e1 !important;
-    font-weight: 600 !important;
-    padding: 0.5rem 1rem !important;
-}
-
-.filter-badge.active, .tag.active, .chip.active {
-    background-color: #2563eb !important;
-    color: #ffffff !important;
-    border-color: #2563eb !important;
-}
-
-/* Force high contrast on any remaining elements */
-.prediction, .recommendation, .analysis {
-    background-color: #ffffff !important;
-    color: #1e293b !important;
-    border: 1px solid #cbd5e1 !important;
-    padding: 1rem !important;
-}
-
-/* Override any neutral or gray text */
-[class*="text-neutral"], [class*="text-gray"], 
-[style*="color: #6b7280"], [style*="color: #9ca3af"] {
-    color: #1e293b !important;
-}
-
-/* Override any low-contrast backgrounds */
-[class*="bg-neutral"], [class*="bg-gray"], 
-[style*="background-color: #f9fafb"], [style*="background-color: #f3f4f6"] {
-    background-color: #ffffff !important;
-    border: 1px solid #cbd5e1 !important;
-}
-
-/* Force readable select dropdowns */
-select, option {
-    background-color: #ffffff !important;
-    color: #1e293b !important;
-    border: 2px solid #cbd5e1 !important;
-    font-size: 16px !important;
-    padding: 0.75rem !important;
-}
-
-/* Force readable inputs */
-input[type="text"], input[type="number"], textarea {
-    background-color: #ffffff !important;
-    color: #1e293b !important;
-    border: 2px solid #cbd5e1 !important;
-    font-size: 16px !important;
-    padding: 0.75rem !important;
-}
-
-input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:focus {
-    border-color: #2563eb !important;
-    outline: 2px solid #2563eb !important;
-    outline-offset: 2px !important;
+    select:focus, input:focus, textarea:focus {
+        border-color: var(--color-primary);
+        outline: 1px solid var(--color-primary);
+        outline-offset: 1px;
+    }
 }
