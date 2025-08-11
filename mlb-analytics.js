@@ -916,7 +916,7 @@ class MLBAnalyticsEngine {
                 odds,
                 totalOpportunities: finalRecommendations.length,
                 highConfidence: finalRecommendations.filter(r => 
-                    ['elite', 'very-high', 'high'].includes(r.confidence)
+                    r.confidence === 'elite' || r.confidence === 'very-high'
                 ).length
             };
             
@@ -1078,35 +1078,41 @@ class MLBAnalyticsEngine {
             }, 0);
             const baseConfidence = totalWeight / rec.confidenceScores.length;
             
-            // Enhanced scoring with factor bonus (more detailed scale)
-            let finalScore = baseConfidence + (numFactors * 0.8); // Increased factor bonus
+            // Enhanced scoring with factor bonus (more realistic distribution)
+            let finalScore = baseConfidence + (numFactors * 0.4); // Reduced factor bonus for realistic distribution
             
-            // 10-point confidence categories with more granular levels
-            let finalConfidence, confidenceLabel;
-            if (finalScore >= 9.0) {
+            // CALIBRATED: More realistic confidence thresholds like dimers.com
+            let finalConfidence, confidenceLabel, probabilityScore, edge;
+            
+            // Calculate probability and edge percentages
+            probabilityScore = Math.min(Math.max((finalScore / 10) * 100, 35), 85); // 35-85% range
+            edge = Math.min(Math.max((finalScore - 5) * 1.2, 0.5), 8.0); // 0.5-8% edge range
+            
+            // REALISTIC confidence distribution (stricter thresholds)
+            if (finalScore >= 8.5 && edge >= 5.0) {
                 finalConfidence = 'elite';
-                confidenceLabel = 'ELITE (9.0+)';
-            } else if (finalScore >= 8.0) {
+                confidenceLabel = 'ELITE';
+            } else if (finalScore >= 7.8 && edge >= 4.0) {
                 finalConfidence = 'very-high';
-                confidenceLabel = 'VERY HIGH (8.0+)';
-            } else if (finalScore >= 7.0) {
+                confidenceLabel = 'VERY HIGH';
+            } else if (finalScore >= 7.2 && edge >= 3.0) {
                 finalConfidence = 'high';
-                confidenceLabel = 'HIGH (7.0+)';
-            } else if (finalScore >= 6.0) {
+                confidenceLabel = 'HIGH';
+            } else if (finalScore >= 6.5 && edge >= 2.0) {
                 finalConfidence = 'medium-high';
-                confidenceLabel = 'MEDIUM-HIGH (6.0+)';
-            } else if (finalScore >= 5.0) {
+                confidenceLabel = 'MEDIUM-HIGH';
+            } else if (finalScore >= 5.8) {
                 finalConfidence = 'medium';
-                confidenceLabel = 'MEDIUM (5.0+)';
-            } else if (finalScore >= 4.0) {
+                confidenceLabel = 'MEDIUM';
+            } else if (finalScore >= 5.0) {
                 finalConfidence = 'medium-low';
-                confidenceLabel = 'MEDIUM-LOW (4.0+)';
-            } else if (finalScore >= 3.0) {
+                confidenceLabel = 'MEDIUM-LOW';
+            } else if (finalScore >= 4.0) {
                 finalConfidence = 'low';
-                confidenceLabel = 'LOW (3.0+)';
+                confidenceLabel = 'LOW';
             } else {
                 finalConfidence = 'very-low';
-                confidenceLabel = 'VERY LOW (<3.0)';
+                confidenceLabel = 'VERY LOW';
             }
             
             // Multi-factor bonus: Boost score when multiple models agree
@@ -1122,6 +1128,10 @@ class MLBAnalyticsEngine {
             return {
                 ...rec,
                 confidence: finalConfidence,
+                confidenceLabel: confidenceLabel,
+                probabilityScore: probabilityScore,
+                edge: edge,
+                finalScore: finalScore,
                 confidenceLabel: confidenceLabel,
                 score: Math.round(finalScore * 10) / 10, // Round to 1 decimal
                 numFactors,

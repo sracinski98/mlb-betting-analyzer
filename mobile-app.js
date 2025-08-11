@@ -610,40 +610,64 @@ class MobileMLBApp {
      * Create mobile-optimized recommendation card
      */
     createMobileRecommendationCard(rec) {
-        const confidence = this.getConfidenceInfo(rec.score || rec.confidence);
-        const expertBoost = rec.expertBoost ? '🎯' : '';
-        const valueBoost = rec.hasValueBet ? '💎' : '';
-        const historicalBoost = rec.historicalBoost ? '📈' : '';
+        // Enhanced metrics like dimers.com
+        const probabilityScore = rec.probabilityScore || Math.min(Math.max((rec.score || 5) * 10, 35), 85);
+        const edge = rec.edge || Math.max((rec.score || 5) - 5, 0.5);
+        const confidenceLabel = rec.confidenceLabel || rec.confidence || 'MEDIUM';
+        
+        // Determine signal badges
+        let signalBadges = '';
+        if (edge >= 4.0) {
+            signalBadges += '<div class="signal-badge high-value">High Value</div>';
+        }
+        if (rec.confidence === 'elite' || rec.confidence === 'very-high') {
+            signalBadges += '<div class="signal-badge elite">Elite Pick</div>';
+        }
+        if (rec.expertBoost) {
+            signalBadges += '<div class="signal-badge expert">Expert</div>';
+        }
         
         return `
-            <div class="recommendation-card mobile-card" data-rec-id="${rec.id || Math.random()}">
+            <div class="recommendation-card mobile-card dimers-style" data-rec-id="${rec.id || Math.random()}">
                 <div class="card-header">
-                    <div class="rec-title">
-                        <span class="rec-type">${this.formatBetType(rec.type)}</span>
-                        <span class="rec-confidence ${confidence.class}">
-                            ${confidence.emoji} ${rec.score || rec.confidence}/10.0
-                        </span>
+                    <div class="game-info">
+                        <div class="game-matchup">${rec.game || rec.teams || 'Game Info'}</div>
+                        <div class="team-info">${rec.team || this.formatBetType(rec.type)}</div>
                     </div>
-                    <div class="rec-enhancements">
-                        ${expertBoost}${valueBoost}${historicalBoost}
+                    <div class="signal-badges">
+                        ${signalBadges}
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="rec-game">
-                        <strong>${rec.game || rec.teams || 'Game Info'}</strong>
+                
+                <div class="bet-details">
+                    <div class="bet-type">${this.formatBetType(rec.type)}</div>
+                    <div class="confidence-metrics">
+                        <div class="probability">
+                            <span class="label">Probability:</span>
+                            <span class="value">${probabilityScore.toFixed(1)}%</span>
+                        </div>
+                        <div class="edge">
+                            <span class="label">Edge:</span>
+                            <span class="value">${edge.toFixed(1)}%</span>
+                        </div>
                     </div>
-                    <div class="rec-description">
-                        ${rec.description || rec.reasoning || 'No description available'}
-                    </div>
-                    ${rec.odds ? `<div class="rec-odds">Odds: ${rec.odds}</div>` : ''}
                 </div>
+                
+                <div class="confidence-row">
+                    <div class="confidence-badge ${rec.confidence}">
+                        ${confidenceLabel}
+                    </div>
+                    <div class="odds">${rec.odds || 'Check Sportsbook'}</div>
+                </div>
+                
+                <div class="reasoning">
+                    ${rec.description || rec.reasoning || 'Analysis based on multiple factors'}
+                </div>
+                
                 <div class="card-footer">
-                    <button class="btn btn-primary btn-sm track-bet-btn" data-rec='${JSON.stringify(rec)}'>
-                        <i class="fas fa-plus"></i> Track Bet
+                    <button class="track-bet-btn" onclick="if(window.betTracker) window.betTracker.trackBet(this.closest('.recommendation-card'), 0)">
+                        📊 Track Bet
                     </button>
-                    <div class="rec-factors">
-                        ${this.getFactorTags(rec)}
-                    </div>
                 </div>
             </div>
         `;
