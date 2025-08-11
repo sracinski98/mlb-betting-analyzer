@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Steve's Bets - MLB Analytics Pro</title>
+    
+    <!-- Preload critical fonts -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" as="style">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles in order of priority -->
+    <link rel="stylesheet" href="mobile-styles.css">
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- PWA meta tags for mobile app-like experience -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Steve's Bets">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚾</text></svg>">
+</head>
+<body>
+    <!-- Mobile-First Header -->
+    <header class="mobile-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <h1 class="logo-text">⚾ Steve's Bets</h1>
+                    <span class="logo-subtitle">MLB Analytics Pro</span>
+                </div>
+                <div class="header-actions">
+                    <button id="filtersToggle" class="btn btn-secondary btn-sm md:hidden">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <button id="analyzeBtn" class="btn btn-primary btn-sm">
+                        <i class="fas fa-play"></i>
+                        <span class="sm:hidden">Run</span>
+                        <span class="hidden sm:inline">Analyze</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Stats Bar -->
+    <div class="stats-bar">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-value" id="totalOpportunities">0</span>
+                    <span class="stat-label">Picks</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="highConfidence">0</span>
+                    <span class="stat-label">High Conf</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="gamesAnalyzed">0</span>
+                    <span class="stat-label">Games</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="expertTrends">0</span>
+                    <span class="stat-label">Expert</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Filters Panel (Collapsible) -->
+    <div id="filtersPanel" class="filters-panel hidden">
+        <div class="container">
+            <div class="filters-content">
+                <div class="filter-row">
+                    <div class="filter-item">
+                        <label for="confidenceFilter" class="form-label">Confidence</label>
+                        <select id="confidenceFilter" class="form-control form-select">
+                            <option value="all">All Levels</option>
+                            <option value="elite">Elite (9.0+)</option>
+                            <option value="very-high">Very High (8.0+)</option>
+                            <option value="high">High (7.0+)</option>
+                            <option value="medium-high">Medium-High (6.0+)</option>
+                            <option value="medium">Medium (5.0+)</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="betTypeFilter" class="form-label">Bet Type</label>
+                        <select id="betTypeFilter" class="form-control form-select">
+                            <option value="all">All Types</option>
+                            <option value="moneyline">Moneyline</option>
+                            <option value="runline">Run Line</option>
+                            <option value="total">Over/Under</option>
+                            <option value="player_prop">Player Props</option>
+                            <option value="parlay">Parlays</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="clearFilters" class="btn btn-secondary btn-sm">Clear</button>
+                    <button id="refreshBtn" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state hidden">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <h3>Analyzing Today's Games</h3>
+                    <p id="loadingStep">Initializing analysis engine...</p>
+                    <div class="loading-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressBar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="error-state hidden">
+                <div class="error-content">
+                    <i class="fas fa-exclamation-triangle error-icon"></i>
+                    <h3>Analysis Failed</h3>
+                    <p id="errorMessage">Unable to fetch today's games. Please try again.</p>
+                    <button id="retryBtn" class="btn btn-primary">
+                        <i class="fas fa-redo"></i> Retry Analysis
+                    </button>
+                </div>
+            </div>
+
+            <!-- Welcome State -->
+            <div id="welcomeState" class="welcome-state">
+                <div class="welcome-content">
+                    <div class="welcome-hero">
+                        <h2>🎯 Welcome to Steve's Bets</h2>
+                        <p class="text-lg text-muted">Advanced MLB betting analytics powered by expert trends, live odds, and machine learning.</p>
+                    </div>
+                    
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">📊</div>
+                            <h4>Expert Trends</h4>
+                            <p>Aggregates picks from Twitter experts, analysts, and sharp bettors</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🎰</div>
+                            <h4>Live Odds</h4>
+                            <p>Real-time Hard Rock sportsbook integration with line movement tracking</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">💰</div>
+                            <h4>Bet Tracking</h4>
+                            <p>Track your bets and improve the model with performance feedback</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🧠</div>
+                            <h4>Smart Scoring</h4>
+                            <p>10-point confidence system with multi-factor analysis</p>
+                        </div>
+                    </div>
+                    
+                    <div class="welcome-actions">
+                        <button id="startAnalysisBtn" class="btn btn-primary btn-lg">
+                            <i class="fas fa-rocket"></i> Start Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Container -->
+            <div id="resultsContainer" class="results-container hidden">
+                <!-- Mobile Tab Navigation -->
+                <div class="tab-navigation">
+                    <div class="tab-scroll">
+                        <button class="tab-btn active" data-tab="quick-picks">
+                            <i class="fas fa-bolt"></i>
+                            <span>Quick Picks</span>
+                        </button>
+                        <button class="tab-btn" data-tab="team-bets">
+                            <i class="fas fa-users"></i>
+                            <span>Team Bets</span>
+                        </button>
+                        <button class="tab-btn" data-tab="player-props">
+                            <i class="fas fa-user"></i>
+                            <span>Player Props</span>
+                        </button>
+                        <button class="tab-btn" data-tab="parlays">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Parlays</span>
+                        </button>
+                        <button class="tab-btn" data-tab="analytics">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Analytics</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab Content Panels -->
+                <div class="tab-content">
+                    <!-- Quick Picks Tab -->
+                    <div id="quick-picks" class="tab-panel active">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-bolt"></i> Quick Picks</h3>
+                            <p class="text-muted">Top-rated betting opportunities based on comprehensive analysis</p>
+                        </div>
+                        <div id="quickPicksContent" class="content-area">
+                            <div class="empty-state">
+                                <i class="fas fa-search"></i>
+                                <p>Run analysis to see quick picks</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Team Bets Tab -->
+                    <div id="team-bets" class="tab-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-users"></i> Team Bets</h3>
+                            <p class="text-muted">Moneyline, run line, and over/under recommendations</p>
+                        </div>
+                        <div id="teamBetsContent" class="content-area">
+                            <div class="empty-state">
+                                <i class="fas fa-search"></i>
+                                <p>Run analysis to see team betting options</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Player Props Tab -->
+                    <div id="player-props" class="tab-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-user"></i> Player Props</h3>
+                            <p class="text-muted">Player performance predictions and prop bet analysis</p>
+                        </div>
+                        <div id="playerPropsContent" class="content-area">
+                            <div class="empty-state">
+                                <i class="fas fa-search"></i>
+                                <p>Run analysis to see player prop recommendations</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parlays Tab -->
+                    <div id="parlays" class="tab-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-layer-group"></i> Parlays</h3>
+                            <p class="text-muted">Multi-game and same-game parlay combinations</p>
+                        </div>
+                        <div id="parlaysContent" class="content-area">
+                            <div class="empty-state">
+                                <i class="fas fa-search"></i>
+                                <p>Run analysis to see parlay recommendations</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Tab -->
+                    <div id="analytics" class="tab-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-chart-bar"></i> Advanced Analytics</h3>
+                            <p class="text-muted">Expert trends, performance metrics, and insights</p>
+                        </div>
+                        <div id="analyticsContent" class="content-area">
+                            <div class="analytics-grid">
+                                <div class="analytics-card">
+                                    <h4>Expert Consensus</h4>
+                                    <div id="expertConsensus" class="metric-display">
+                                        <span class="metric-value">--</span>
+                                        <span class="metric-label">Games with strong consensus</span>
+                                    </div>
+                                </div>
+                                <div class="analytics-card">
+                                    <h4>Sharp Action</h4>
+                                    <div id="sharpAction" class="metric-display">
+                                        <span class="metric-value">--</span>
+                                        <span class="metric-label">Sharp vs public disagreements</span>
+                                    </div>
+                                </div>
+                                <div class="analytics-card">
+                                    <h4>Line Movement</h4>
+                                    <div id="lineMovement" class="metric-display">
+                                        <span class="metric-value">--</span>
+                                        <span class="metric-label">Significant line movements</span>
+                                    </div>
+                                </div>
+                                <div class="analytics-card">
+                                    <h4>Model Performance</h4>
+                                    <div id="modelPerformance" class="metric-display">
+                                        <span class="metric-value">--</span>
+                                        <span class="metric-label">Recent win rate</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-nav md:hidden">
+        <a href="#quick-picks" class="mobile-nav-item active" data-nav="quick-picks">
+            <i class="fas fa-bolt mobile-nav-icon"></i>
+            <span>Picks</span>
+        </a>
+        <a href="#team-bets" class="mobile-nav-item" data-nav="team-bets">
+            <i class="fas fa-users mobile-nav-icon"></i>
+            <span>Teams</span>
+        </a>
+        <a href="#player-props" class="mobile-nav-item" data-nav="player-props">
+            <i class="fas fa-user mobile-nav-icon"></i>
+            <span>Props</span>
+        </a>
+        <a href="#parlays" class="mobile-nav-item" data-nav="parlays">
+            <i class="fas fa-layer-group mobile-nav-icon"></i>
+            <span>Parlays</span>
+        </a>
+        <a href="#analytics" class="mobile-nav-item" data-nav="analytics">
+            <i class="fas fa-chart-bar mobile-nav-icon"></i>
+            <span>Stats</span>
+        </a>
+    </nav>
+
+    <!-- Bet Tracking Modal (for Phase 1 integration) -->
+    <div id="betTrackingModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Track This Bet</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="betTrackingForm">
+                    <div class="form-group">
+                        <label class="form-label">Stake Amount ($)</label>
+                        <input type="number" id="stakeAmount" class="form-control" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes (Optional)</label>
+                        <textarea id="betNotes" class="form-control" rows="3" placeholder="Any additional notes..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelBetTracking">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Track Bet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Phase 1 Enhanced Analytics Scripts -->
+    <script src="expert-trends.js"></script>
+    <script src="hardrock-integration.js"></script>
+    <script src="bet-tracking.js"></script>
+    <script src="mlb-analytics.js"></script>
+    <script src="mobile-app.js"></script>
+</body>
+</html>
