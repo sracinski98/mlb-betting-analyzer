@@ -389,6 +389,9 @@ class MobileMLBApp {
      * Switch to specific tab
      */
     switchTab(tabName) {
+        // Store current scroll position to maintain it
+        const currentScrollY = window.scrollY;
+        
         // Update active states
         document.querySelectorAll('.tab-btn, .mobile-nav-item').forEach(btn => {
             btn.classList.remove('active');
@@ -408,7 +411,14 @@ class MobileMLBApp {
             targetPanel.classList.add('active');
             // Remove problematic scroll behavior that jumps to bottom
             // targetPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }        this.currentTab = tabName;
+        }
+        
+        // Restore scroll position to prevent jumping
+        setTimeout(() => {
+            window.scrollTo(0, currentScrollY);
+        }, 0);
+        
+        this.currentTab = tabName;
         
         // Save preference
         this.userPreferences.lastTab = tabName;

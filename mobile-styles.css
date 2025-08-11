@@ -359,18 +359,27 @@ a:hover {
     box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
+/* Tab Content Container - Prevent Layout Shifts */
+.tab-content {
+    position: relative;
+}
+
 /* Enhanced Tab Switching - Prevent Page Jumping */
 .tab-panel {
     opacity: 0;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
     transform: translateY(10px);
     transition: opacity 0.3s ease, transform 0.3s ease;
-    display: none;
 }
 
 .tab-panel.active {
     opacity: 1;
+    visibility: visible;
+    height: auto;
+    overflow: visible;
     transform: translateY(0);
-    display: block;
 }
 
 .mobile-nav-item {
