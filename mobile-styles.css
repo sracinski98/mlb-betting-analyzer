@@ -1120,3 +1120,54 @@ a:hover {
     display: flex;
     justify-content: flex-end;
 }
+
+/* Parlay-specific styles */
+.parlay-legs {
+    padding: 0 1rem;
+    margin-bottom: 1rem;
+}
+
+.parlay-leg {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.875rem;
+}
+
+.parlay-leg:last-child {
+    border-bottom: none;
+}
+
+.leg-game {
+    color: #6b7280;
+    font-weight: 500;
+    flex: 1;
+}
+
+.leg-bet {
+    color: #1f2937;
+    font-weight: 600;
+    text-align: right;
+    flex: 1;
+}
+
+.more-legs {
+    text-align: center;
+    color: #6b7280;
+    font-style: italic;
+    padding: 0.5rem 0;
+    font-size: 0.8rem;
+}
+
+.parlay-card.error {
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+
+.parlay-card.error .card-body {
+    text-align: center;
+    color: #dc2626;
+    font-weight: 500;
+}

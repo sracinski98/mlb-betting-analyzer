@@ -309,13 +309,36 @@ class MobileMLBApp {
         if (!recommendations) return [];
         
         return recommendations.filter(rec => {
-            // Confidence filter
-            const score = rec.score || rec.confidence || 0;
+            // Confidence filter - handle different data structures
+            let score = rec.score || rec.confidence || 0;
+            
+            // For parlays, use parlay-specific scoring
+            if (rec.parlayCategory || rec.type?.includes('parlay')) {
+                score = rec.avgScore || rec.score || rec.confidence || 5.0;
+            }
+            
+            // Convert confidence strings to numbers if needed
+            if (typeof score === 'string') {
+                const confidenceMap = {
+                    'elite': 9.5, 'very-high': 8.5, 'high': 7.5,
+                    'medium-high': 6.5, 'medium': 5.5, 'medium-low': 4.5,
+                    'low': 3.5, 'very-low': 2.5
+                };
+                score = confidenceMap[score] || 5.0;
+            }
+            
             const confidenceMatch = score >= confidenceRange.min && 
                                   (confidenceRange.max === 10 ? score <= confidenceRange.max : score < confidenceRange.max);
             
-            // Bet type filter
-            const typeMatch = betTypeFilter === 'all' || rec.type === betTypeFilter;
+            // Bet type filter - handle parlays differently
+            let typeMatch = betTypeFilter === 'all';
+            if (!typeMatch) {
+                if (betTypeFilter === 'parlays') {
+                    typeMatch = rec.parlayCategory || rec.type?.includes('parlay') || rec.legs;
+                } else {
+                    typeMatch = rec.type === betTypeFilter || rec.betType === betTypeFilter;
+                }
+            }
             
             return confidenceMatch && typeMatch;
         });
@@ -592,11 +615,21 @@ class MobileMLBApp {
 
     displayParlays(parlays) {
         const container = document.getElementById('parlaysContent');
-        if (!container) return;
+        if (!container) {
+            console.error('❌ Parlays container not found!');
+            return;
+        }
+        
+        console.log(`📊 Displaying ${parlays?.length || 0} parlays`);
         
         if (!parlays || parlays.length === 0) {
             container.innerHTML = this.getEmptyState('No parlays match your current filters');
             return;
+        }
+        
+        // Debug first parlay structure
+        if (parlays.length > 0) {
+            console.log('First parlay structure:', parlays[0]);
         }
         
         container.innerHTML = `
@@ -604,6 +637,8 @@ class MobileMLBApp {
                 ${parlays.slice(0, 8).map(parlay => this.createMobileParlayCard(parlay)).join('')}
             </div>
         `;
+        
+        console.log(`✅ Parlays container updated with ${parlays.length} parlays`);
     }
 
     /**
@@ -677,39 +712,75 @@ class MobileMLBApp {
      * Create mobile-optimized parlay card
      */
     createMobileParlayCard(parlay) {
-        const confidence = this.getConfidenceInfo(parlay.score || parlay.confidence);
-        
-        return `
-            <div class="parlay-card mobile-card">
-                <div class="card-header">
-                    <div class="parlay-title">
-                        <span class="parlay-type">${parlay.type || 'Multi-Game Parlay'}</span>
-                        <span class="parlay-confidence ${confidence.class}">
-                            ${confidence.emoji} ${parlay.score || parlay.confidence}/10.0
-                        </span>
+        try {
+            const confidence = this.getConfidenceInfo(parlay.avgScore || parlay.score || parlay.confidence || 5.0);
+            
+            // Handle parlay legs safely
+            const legs = parlay.legs || [];
+            const legsHtml = legs.slice(0, 4).map(leg => {
+                const game = leg.game || leg.teams || leg.gameKey || 'Game';
+                const bet = leg.bet || leg.selection || leg.recommendation || leg.type || 'Bet';
+                
+                return `
+                    <div class="parlay-leg">
+                        <span class="leg-game">${game}</span>
+                        <span class="leg-bet">${bet}</span>
                     </div>
-                    <div class="parlay-payout">
-                        ${parlay.odds ? `+${parlay.odds}` : 'Calculate Odds'}
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="parlay-legs">
-                        ${(parlay.legs || []).slice(0, 4).map(leg => `
-                            <div class="parlay-leg">
-                                <span class="leg-game">${leg.game || leg.teams}</span>
-                                <span class="leg-bet">${leg.bet || leg.selection}</span>
+                `;
+            }).join('');
+            
+            const moreLegs = legs.length > 4 ? `<div class="more-legs">+${legs.length - 4} more</div>` : '';
+            
+            return `
+                <div class="parlay-card mobile-card dimers-style">
+                    <div class="card-header">
+                        <div class="game-info">
+                            <div class="game-matchup">${parlay.type || 'Multi-Game Parlay'}</div>
+                            <div class="team-info">${legs.length}-Leg Parlay</div>
+                        </div>
+                        <div class="signal-badges">
+                            <div class="confidence-badge ${confidence.class}">
+                                ${confidence.label}
                             </div>
-                        `).join('')}
-                        ${(parlay.legs || []).length > 4 ? `<div class="more-legs">+${(parlay.legs || []).length - 4} more</div>` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="bet-details">
+                        <div class="bet-type">Parlay</div>
+                        <div class="confidence-metrics">
+                            <div class="probability">
+                                <span class="label">Avg Score:</span>
+                                <span class="value">${(parlay.avgScore || parlay.score || 5.0).toFixed(1)}</span>
+                            </div>
+                            <div class="edge">
+                                <span class="label">Payout:</span>
+                                <span class="value">${parlay.odds ? `+${parlay.odds}` : 'TBD'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="parlay-legs">
+                        ${legsHtml}
+                        ${moreLegs}
+                    </div>
+                    
+                    <div class="card-footer">
+                        <button class="track-bet-btn" onclick="if(window.betTracker) window.betTracker.trackBet(this.closest('.parlay-card'), 0)">
+                            📊 Track Parlay
+                        </button>
                     </div>
                 </div>
-                <div class="card-footer">
-                    <button class="btn btn-primary btn-sm track-parlay-btn" data-parlay='${JSON.stringify(parlay)}'>
-                        <i class="fas fa-plus"></i> Track Parlay
-                    </button>
+            `;
+        } catch (error) {
+            console.error('Error creating parlay card:', error, parlay);
+            return `
+                <div class="parlay-card mobile-card error">
+                    <div class="card-body">
+                        <p>Error displaying parlay</p>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
     }
 
     /**
