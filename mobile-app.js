@@ -1073,27 +1073,61 @@ class MobileMLBApp {
     }
 
     showResultsContainer() {
-        document.getElementById('resultsContainer')?.classList.remove('hidden');
+        const container = document.getElementById('resultsContainer');
+        if (container) {
+            container.classList.remove('hidden');
+            // Initialize any components that need setup after showing results
+            this.initializeResultsComponents();
+        }
+    }
+
+    initializeResultsComponents() {
+        // Make sure all required elements are present and set up properly
+        const requiredElements = [
+            'totalOpportunities',
+            'highConfidence',
+            'gamesAnalyzed',
+            'expertTrends'
+        ];
+
+        requiredElements.forEach(id => {
+            const element = document.getElementById(id);
+            if (!element) {
+                console.warn(`Required element #${id} not found in the DOM`);
+            }
+        });
     }
 
     showErrorState(message) {
-        document.getElementById('errorState')?.classList.remove('hidden');
-        document.getElementById('loadingState')?.classList.add('hidden');
-        
+        const errorState = document.getElementById('errorState');
+        const loadingState = document.getElementById('loadingState');
         const errorMessage = document.getElementById('errorMessage');
+        
+        if (errorState) errorState.classList.remove('hidden');
+        if (loadingState) loadingState.classList.add('hidden');
         if (errorMessage) errorMessage.textContent = message;
     }
 
     updateHeaderStats(results) {
         // Update mobile stats
-        document.getElementById('totalOpportunities').textContent = 
-            (results.quickPicks?.length || 0) + (results.teamBets?.length || 0);
-        document.getElementById('highConfidence').textContent = 
-            [...(results.quickPicks || []), ...(results.teamBets || [])]
+        const totalOppEl = document.getElementById('totalOpportunities');
+        const highConfEl = document.getElementById('highConfidence');
+        const gamesAnalyzedEl = document.getElementById('gamesAnalyzed');
+        const expertTrendsEl = document.getElementById('expertTrends');
+
+        if (totalOppEl) {
+            totalOppEl.textContent = (results.quickPicks?.length || 0) + (results.teamBets?.length || 0);
+        }
+        if (highConfEl) {
+            highConfEl.textContent = [...(results.quickPicks || []), ...(results.teamBets || [])]
                 .filter(r => (r.score || r.confidence) >= 8.0).length;
-        document.getElementById('gamesAnalyzed').textContent = results.summary?.totalGames || 0;
-        document.getElementById('expertTrends').textContent = 
-            results.enhancedData?.expertTrends?.summary?.strongConsensus || 0;
+        }
+        if (gamesAnalyzedEl) {
+            gamesAnalyzedEl.textContent = results.summary?.totalGames || 0;
+        }
+        if (expertTrendsEl) {
+            expertTrendsEl.textContent = results.enhancedData?.expertTrends?.summary?.strongConsensus || 0;
+        }
         
         // Update desktop stats (if they exist)
         const desktopTotal = document.getElementById('totalOpportunitiesDesktop');
