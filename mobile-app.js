@@ -422,45 +422,56 @@ class MobileMLBApp {
      * Organize engine results for mobile display categories
      */
     organizeDataForMobile(results) {
-        const recommendations = results.recommendations || [];
-        const parlays = results.parlays || [];
-        
-        console.log(`Organizing data: ${recommendations.length} recommendations, ${parlays.length} parlays`);
-        
-        // Categorize recommendations by type
-        const quickPicks = recommendations.filter(r => 
-            ['elite', 'very-high', 'high'].includes(r.confidence) || r.score >= 7.0
-        ).slice(0, 8);
-        
-        const teamBets = recommendations.filter(r => 
-            r.betType && (r.betType.includes('_ml') || r.betType.includes('spread') || r.betType.includes('total'))
-        ).slice(0, 12);
-        
-        const playerProps = recommendations.filter(r => 
-            r.betType && (r.betType.includes('player_') || r.recommendation.toLowerCase().includes('hit') || 
-                         r.recommendation.toLowerCase().includes('strikeout') || r.recommendation.toLowerCase().includes('rbi'))
-        ).slice(0, 10);
-        
-        // Ensure all categories have content
-        if (quickPicks.length === 0 && recommendations.length > 0) {
-            quickPicks.push(...recommendations.slice(0, 3));
+        try {
+            const recommendations = results.recommendations || [];
+            const parlays = results.parlays || [];
+            
+            console.log(`Organizing data: ${recommendations.length} recommendations, ${parlays.length} parlays`);
+            
+            // Categorize recommendations by type
+            let quickPicks = recommendations.filter(r => 
+                ['elite', 'very-high', 'high'].includes(r.confidence) || r.score >= 7.0
+            ).slice(0, 8);
+            
+            let teamBets = recommendations.filter(r => 
+                r.betType && (r.betType.includes('_ml') || r.betType.includes('spread') || r.betType.includes('total'))
+            ).slice(0, 12);
+            
+            let playerProps = recommendations.filter(r => 
+                r.betType && (r.betType.includes('player_') || r.recommendation.toLowerCase().includes('hit') || 
+                             r.recommendation.toLowerCase().includes('strikeout') || r.recommendation.toLowerCase().includes('rbi'))
+            ).slice(0, 10);
+            
+            // Ensure all categories have content
+            if (quickPicks.length === 0 && recommendations.length > 0) {
+                quickPicks = quickPicks.concat(recommendations.slice(0, 3));
+            }
+            if (teamBets.length === 0 && recommendations.length > 0) {
+                teamBets = teamBets.concat(recommendations.slice(0, 6));
+            }
+            if (playerProps.length === 0 && recommendations.length > 0) {
+                playerProps = playerProps.concat(recommendations.slice(-4)); // Last few as player props
+            }
+            
+            console.log(`Organized: ${quickPicks.length} quick picks, ${teamBets.length} team bets, ${playerProps.length} player props, ${parlays.length} parlays`);
+            
+            return Object.assign({}, results, {
+                quickPicks: quickPicks,
+                teamBets: teamBets,
+                playerProps: playerProps,
+                parlays: parlays
+            });
+        } catch (error) {
+            console.error('Error organizing data for mobile:', error);
+            // Fallback: return original results with basic organization
+            const recommendations = results.recommendations || [];
+            return Object.assign({}, results, {
+                quickPicks: recommendations.slice(0, 8),
+                teamBets: recommendations.slice(0, 12),
+                playerProps: recommendations.slice(0, 10),
+                parlays: results.parlays || []
+            });
         }
-        if (teamBets.length === 0 && recommendations.length > 0) {
-            teamBets.push(...recommendations.slice(0, 6));
-        }
-        if (playerProps.length === 0 && recommendations.length > 0) {
-            playerProps.push(...recommendations.slice(-4)); // Last few as player props
-        }
-        
-        console.log(`Organized: ${quickPicks.length} quick picks, ${teamBets.length} team bets, ${playerProps.length} player props, ${parlays.length} parlays`);
-        
-        return {
-            ...results,
-            quickPicks,
-            teamBets,
-            playerProps,
-            parlays
-        };
     }
 
     /**
@@ -478,7 +489,9 @@ class MobileMLBApp {
             this.updateLoadingStep('Initializing Phase 1 enhanced analysis...', 10);
             
             // Run enhanced analysis with Phase 1 features
+            console.log('Starting comprehensive analysis...');
             const results = await this.engine.runComprehensiveAnalysis();
+            console.log('Analysis results received:', results);
             
             this.updateLoadingStep('Processing expert trends...', 40);
             await this.delay(500); // Give user feedback
@@ -490,7 +503,9 @@ class MobileMLBApp {
             await this.delay(500);
             
             // Organize data for mobile display
+            console.log('Organizing data for mobile display...');
             const organizedData = this.organizeDataForMobile(results);
+            console.log('Organized data:', organizedData);
             this.currentData = organizedData;
             
             this.hideLoadingState();
