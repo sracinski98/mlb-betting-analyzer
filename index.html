@@ -104,6 +104,10 @@
                     <i class="fas fa-brain"></i>
                     Advanced Analytics
                 </button>
+                <button class="tab-btn" data-tab="tracked">
+                    <i class="fas fa-bookmark"></i>
+                    Tracked Bets
+                </button>
             </div>
 
             <!-- Tab Content -->
@@ -220,6 +224,22 @@
                                     <!-- Dynamic content -->
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tracked Bets Tab -->
+                <div id="tracked" class="tab-pane">
+                    <div class="section">
+                        <h2><i class="fas fa-bookmark"></i> Your Tracked Bets</h2>
+                        <div class="tracked-bets-filters">
+                            <button class="filter-btn active" data-filter="all">All</button>
+                            <button class="filter-btn" data-filter="pending">Pending</button>
+                            <button class="filter-btn" data-filter="won">Won</button>
+                            <button class="filter-btn" data-filter="lost">Lost</button>
+                        </div>
+                        <div id="trackedBets" class="tracked-bets-container">
+                            <!-- Dynamic content -->
                         </div>
                     </div>
                 </div>

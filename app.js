@@ -203,17 +203,33 @@ function formatOdds(odds) {
 function formatBetType(betType) {
     if (!betType) return 'N/A';
     
+    // Special cases for player props
+    if (betType.includes('player_')) {
+        const parts = betType.split('_');
+        if (parts.includes('over')) {
+            return `Over ${parts.slice(1, -1).join(' ')}`;
+        }
+        if (parts.includes('under')) {
+            return `Under ${parts.slice(1, -1).join(' ')}`;
+        }
+    }
+    
+    // Handle team totals
+    if (betType.includes('total')) {
+        if (betType.includes('over')) return 'Over Team Total';
+        if (betType.includes('under')) return 'Under Team Total';
+        return 'Team Total';
+    }
+    
     // Convert under_total to "Under Total"
     const formatted = betType
         .split('_')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .map(word => {
+            // Special case for RBI, HR, etc.
+            if (word.toUpperCase() === word) return word;
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        })
         .join(' ');
-    
-    // Special cases
-    if (betType.includes('player_')) {
-        if (betType.includes('over')) return 'Over';
-        if (betType.includes('under')) return 'Under';
-    }
     
     return formatted;
 }
@@ -366,6 +382,62 @@ betTypeFilter.addEventListener('change', () => {
         parlays: analytics.cache.parlays
     });
 });
+
+// Tracked bets functionality
+async function loadTrackedBets() {
+    try {
+        const response = await fetch('/.netlify/functions/track-bets?userId=user123');
+        if (!response.ok) {
+            throw new Error('Failed to load tracked bets');
+        }
+        
+        const data = await response.json();
+        updateTrackedBetsUI(data.bets);
+    } catch (error) {
+        console.error('Error loading tracked bets:', error);
+        showNotification('Failed to load tracked bets', 'error');
+    }
+}
+
+function updateTrackedBetsUI(bets) {
+    const trackedBetsContainer = document.getElementById('trackedBets');
+    
+    if (!bets || bets.length === 0) {
+        trackedBetsContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-bookmark"></i>
+                <p>No tracked bets yet. Track some bets to see them here!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    trackedBetsContainer.innerHTML = bets.map(record => `
+        <div class="tracked-bet-card ${record.status || 'pending'}">
+            <div class="bet-header score-${getConfidenceClass(record.bets[0].score)}">
+                <span class="score">${record.bets[0].score.toFixed(1)}/10</span>
+                <span class="confidence">${getConfidenceLabel(record.bets[0].score)}</span>
+                <span class="status-badge">${record.status || 'Pending'}</span>
+            </div>
+            <div class="bet-content">
+                ${record.bets.map(bet => `
+                    <div class="bet-detail">
+                        <h3>${formatBetType(bet.betType)}</h3>
+                        <p class="matchup">${bet.matchup || bet.player || ''}</p>
+                        ${bet.odds ? `<p class="odds">Odds: ${formatOdds(bet.odds)}</p>` : ''}
+                        <p class="reason">${bet.reason || ''}</p>
+                    </div>
+                `).join('')}
+                <div class="bet-metadata">
+                    <span class="timestamp">Tracked: ${new Date(record.createdAt).toLocaleDateString()}</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Load tracked bets when switching to tracked tab
+document.querySelector('[data-tab="tracked"]').addEventListener('click', loadTrackedBets);
 
 // Export functionality
 document.getElementById('exportFab').addEventListener('click', () => {
