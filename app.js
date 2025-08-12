@@ -1,3 +1,9 @@
+// Disable WebSocket debug connections in production
+if (process.env.NODE_ENV === 'production' || !process.env.VITE_ENABLE_DEVTOOLS) {
+    window.__VUE_DEVTOOLS_SOCKET__ = null;
+    window.__VUE_DEVTOOLS_CONNECT__ = () => {};
+}
+
 // Store chart instances globally
 let confidenceChartInstance = null;
 let distributionChartInstance = null;
