@@ -212,8 +212,34 @@ function updateParlays(parlays) {
                                         <p class="parlay-legs-count">${parlay.legs.length}-leg parlay</p>
                                         <div class="bet-summary">
                                             ${parlay.legs.map(leg => {
+                                                // Debug logging
+                                                console.log('Processing leg:', {
+                                                    raw: leg,
+                                                    propLine: leg.propLine,
+                                                    line: leg.line,
+                                                    value: leg.value,
+                                                    total: leg.total,
+                                                    betDesc: leg.betDesc,
+                                                    description: leg.description
+                                                });
+                                                
+                                                let total;
+                                                // Try to extract the number from various sources
+                                                if (leg.propLine) {
+                                                    const match = leg.propLine.match(/(\d+\.?\d*)/);
+                                                    if (match) total = match[1];
+                                                }
+                                                if (!total && leg.betDesc) {
+                                                    const match = leg.betDesc.match(/(\d+\.?\d*)/);
+                                                    if (match) total = match[1];
+                                                }
+                                                if (!total && leg.description) {
+                                                    const match = leg.description.match(/(\d+\.?\d*)/);
+                                                    if (match) total = match[1];
+                                                }
+                                                
                                                 const legData = {
-                                                    total: leg.line || leg.value || leg.total,
+                                                    total: total || leg.line || leg.value || leg.total,
                                                     isUnder: leg.betType?.toLowerCase().includes('under'),
                                                     type: leg.propType || leg.type || '',
                                                     player: leg.player || ''
@@ -240,7 +266,32 @@ function updateParlays(parlays) {
                                                 </div>
                                                 ${leg.player ? `<p class="player-name">${leg.player}</p>` : ''}
                                                 ${(() => {
-                                                    const total = leg.line || leg.value || leg.total;
+                                                    // Try to extract number from various fields
+                                                    let total;
+                                                    let displayText = '';
+                                                    
+                                                    if (leg.propLine) {
+                                                        const match = leg.propLine.match(/(\d+\.?\d*)/);
+                                                        if (match) {
+                                                            total = match[1];
+                                                            displayText = leg.propLine;
+                                                        }
+                                                    }
+                                                    if (!total && leg.betDesc) {
+                                                        const match = leg.betDesc.match(/(\d+\.?\d*)/);
+                                                        if (match) {
+                                                            total = match[1];
+                                                            displayText = leg.betDesc;
+                                                        }
+                                                    }
+                                                    if (!total && leg.description) {
+                                                        const match = leg.description.match(/(\d+\.?\d*)/);
+                                                        if (match) {
+                                                            total = match[1];
+                                                            displayText = leg.description;
+                                                        }
+                                                    }
+                                                    
                                                     const isUnder = leg.betType?.toLowerCase().includes('under');
                                                     const type = leg.propType || leg.type || '';
                                                     
@@ -249,7 +300,8 @@ function updateParlays(parlays) {
                                                             <p class="prop-line highlight">
                                                                 ${isUnder ? 'Under' : 'Over'} ${total} 
                                                                 ${type}
-                                                            </p>`;
+                                                            </p>
+                                                            <p class="prop-line-desc">${displayText}</p>`;
                                                     } else if (leg.propLine) {
                                                         return `<p class="prop-line">${leg.propLine}</p>`;
                                                     }
