@@ -2,6 +2,120 @@
 let confidenceChartInstance = null;
 let distributionChartInstance = null;
 
+// Button event handlers
+function trackBet(bet) {
+    console.log('Tracking bet:', bet);
+    // Save the bet to local storage
+    const trackedBets = JSON.parse(localStorage.getItem('trackedBets') || '[]');
+    trackedBets.push({
+        ...bet,
+        trackingId: Date.now(),
+        trackDate: new Date().toISOString()
+    });
+    localStorage.setItem('trackedBets', JSON.stringify(trackedBets));
+    updateTrackingUI();
+}
+
+function updateTrackingUI() {
+    const trackedBetsContainer = document.getElementById('trackedBets');
+    if (!trackedBetsContainer) return;
+
+    const trackedBets = JSON.parse(localStorage.getItem('trackedBets') || '[]');
+    if (trackedBets.length === 0) {
+        trackedBetsContainer.innerHTML = '<p>No bets tracked yet</p>';
+        return;
+    }
+
+    trackedBetsContainer.innerHTML = `
+        <div class="tracked-bets-grid">
+            ${trackedBets.map(bet => `
+                <div class="tracked-bet-card">
+                    <h4>${bet.betType}</h4>
+                    ${bet.player ? `<p>Player: ${bet.player}</p>` : ''}
+                    ${bet.propLine ? `<p>Line: ${bet.propLine}</p>` : ''}
+                    <p>Confidence: ${bet.confidence}</p>
+                    <button class="remove-bet-btn" data-id="${bet.trackingId}">Remove</button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Add event listeners for remove buttons
+    trackedBetsContainer.querySelectorAll('.remove-bet-btn').forEach(btn => {
+        btn.addEventListener('click', () => removeBet(btn.dataset.id));
+    });
+}
+
+function removeBet(trackingId) {
+    const trackedBets = JSON.parse(localStorage.getItem('trackedBets') || '[]');
+    const updatedBets = trackedBets.filter(bet => bet.trackingId !== parseInt(trackingId));
+    localStorage.setItem('trackedBets', JSON.stringify(updatedBets));
+    updateTrackingUI();
+}
+
+function renderPropCards(props, category) {
+    return props.map(prop => `
+        <div class="prop-card ${category}">
+            <h4>${prop.player || prop.betType}</h4>
+            ${prop.propLine ? `<p>Line: ${prop.propLine}</p>` : ''}
+            <p>Confidence: ${prop.confidence}</p>
+            <p class="reason">${prop.reason}</p>
+            <button class="track-bet-btn" data-bet='${JSON.stringify(prop)}'>Track Bet</button>
+        </div>
+    `).join('');
+}
+
+function filterPropsByCategory(category) {
+    const sections = document.querySelectorAll('.prop-section');
+    if (category === 'all') {
+        sections.forEach(section => {
+            if (!section.classList.contains('empty')) {
+                section.style.display = 'block';
+            }
+        });
+    } else {
+        sections.forEach(section => {
+            if (section.id === `${category}Props` && !section.classList.contains('empty')) {
+                section.style.display = 'block';
+            } else {
+                section.style.display = 'none';
+            }
+        });
+    }
+}
+
+function updateParlays(parlays) {
+    const parlayContainer = document.getElementById('parlayRecommendations');
+    if (!parlayContainer) return;
+
+    parlayContainer.innerHTML = `
+        <div class="parlay-grid">
+            ${parlays.map(parlay => `
+                <div class="parlay-card ${parlay.riskLevel}">
+                    <h4>${parlay.type}</h4>
+                    <p>Category: ${parlay.parlayCategory}</p>
+                    <p>Risk Level: ${parlay.riskLevel}</p>
+                    <p>Expected Odds: ${parlay.expectedOdds}</p>
+                    <p class="reason">${parlay.reasoning}</p>
+                    <div class="parlay-legs">
+                        ${parlay.legs.map(leg => `
+                            <div class="parlay-leg">
+                                <p>${leg.player || leg.betType}: ${leg.propLine || leg.reason}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="track-parlay-btn" data-parlay='${JSON.stringify(parlay)}'>Track Parlay</button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Add event listeners for track buttons
+    parlayContainer.querySelectorAll('.track-parlay-btn').forEach(btn => {
+        btn.addEventListener('click', () => trackBet(JSON.parse(btn.dataset.parlay)));
+    });
+}
+
 function updateConfidenceChart(data) {
     const ctx = document.getElementById('confidenceChart').getContext('2d');
     
