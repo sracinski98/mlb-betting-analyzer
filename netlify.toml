@@ -1,7 +1,15 @@
 [build]
   publish = "."
-  command = "pip install -r requirements.txt"
+  command = """
+    pip install -r requirements.txt
+    pip install -r netlify/functions/requirements.txt
+    cp -r mlb_analyzer netlify/functions/
+  """
   functions = "netlify/functions"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
 
 [build.environment]
   NODE_VERSION = "18"
