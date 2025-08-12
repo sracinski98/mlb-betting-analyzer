@@ -371,9 +371,9 @@ function updateUI(result) {
             category: p.parlayCategory
         })));
         
-        const parlayContainer = document.getElementById('parlayRecommendations');
+        const parlayContainer = document.getElementById('parlaysList');
         if (!parlayContainer) {
-            console.error("Parlay container not found");
+            console.error("Parlay container not found - Make sure there is an element with id='parlaysList'");
             return;
         }
         console.log("Found parlay container:", parlayContainer);
