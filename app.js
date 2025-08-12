@@ -197,33 +197,36 @@ function updateParlays(parlays) {
         <div class="parlay-sections">
             ${Object.entries(groupedParlays).map(([category, categoryParlays]) => `
                 <div class="parlay-section">
-                    <h3>${formatCategory(category)} (${categoryParlays.length})</h3>
+                    <h3 class="section-title">${formatCategory(category)} (${categoryParlays.length})</h3>
                     <div class="parlay-grid">
                         ${categoryParlays.map(parlay => `
-                            <div class="parlay-card ${parlay.riskLevel}">
-                                <div class="parlay-header">
+                            <div class="prop-card parlay ${parlay.riskLevel.toLowerCase()}">
+                                <div class="prop-header">
                                     <div class="confidence-score">${parlay.avgScore?.toFixed(1) || '0.0'}/10</div>
-                                    <div class="parlay-type">${parlay.type}</div>
-                                    <div class="risk-level ${parlay.riskLevel}">${parlay.riskLevel.toUpperCase()}</div>
+                                    <div class="confidence-label">${parlay.riskLevel.toUpperCase()}</div>
+                                    <div class="parlay-type-badge">${parlay.type}</div>
                                 </div>
-                                <div class="parlay-content">
-                                    <p class="odds">Expected Odds: ${parlay.expectedOdds || 'N/A'}</p>
-                                    <p class="reason">${parlay.reasoning || 'No analysis available'}</p>
+                                <div class="prop-content">
+                                    <div class="parlay-summary">
+                                        <p class="odds-line">Expected Odds: ${parlay.expectedOdds || 'N/A'}</p>
+                                        <p class="parlay-legs-count">${parlay.legs.length}-leg parlay</p>
+                                        <p class="analysis">${parlay.reasoning || 'No analysis available'}</p>
+                                    </div>
                                     <div class="parlay-legs">
                                         ${parlay.legs.map(leg => `
-                                            <div class="parlay-leg">
+                                            <div class="parlay-leg ${leg.confidence ? leg.confidence.toLowerCase() : ''}">
                                                 <div class="leg-header">
                                                     <span class="leg-type">${formatBetType(leg.betType)}</span>
-                                                    ${leg.confidence ? `<span class="leg-confidence">${leg.confidence.toUpperCase()}</span>` : ''}
+                                                    ${leg.confidence ? `<span class="confidence-pill ${leg.confidence.toLowerCase()}">${leg.confidence.toUpperCase()}</span>` : ''}
                                                 </div>
-                                                ${leg.player ? `<p class="leg-player">${leg.player}</p>` : ''}
-                                                ${leg.propLine ? `<p class="leg-line">${leg.propLine}</p>` : ''}
-                                                <p class="leg-reason">${leg.reason || 'No analysis available'}</p>
+                                                ${leg.player ? `<p class="player-name">${leg.player}</p>` : ''}
+                                                ${leg.propLine ? `<p class="prop-line">${leg.propLine}</p>` : ''}
+                                                <p class="leg-analysis">${leg.reason || 'No analysis available'}</p>
                                             </div>
                                         `).join('')}
                                     </div>
                                 </div>
-                                <button class="track-parlay-btn" data-parlay='${JSON.stringify(parlay)}'>
+                                <button class="track-bet-btn" data-parlay='${JSON.stringify(parlay)}'>
                                     <i class="fas fa-plus"></i> Track Parlay
                                 </button>
                             </div>
