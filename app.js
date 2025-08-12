@@ -148,11 +148,13 @@ function filterPropsByCategory(category) {
     }
     
     // If we're in the player props section, also handle sub-categories
-    if (category === 'props' || category === 'all') {
-        const sections = document.querySelectorAll('.prop-section');
+    if (playerPropsSection && (category === 'props' || category === 'all')) {
+        const sections = playerPropsSection.querySelectorAll('.prop-section');
         sections.forEach(section => {
             if (!section.classList.contains('empty')) {
                 section.style.display = 'block';
+            } else {
+                section.style.display = 'none';
             }
         });
     }
@@ -228,16 +230,16 @@ function formatCategory(category) {
 function filterParlaysByType(type) {
     console.log('Filtering parlays by type:', type);
     
-    const parlaysList = document.getElementById('parlaysList');
-    if (!parlaysList) return;
+    const parlayContainer = document.getElementById('parlayRecommendations');
+    if (!parlayContainer) return;
     
-    const parlayCards = parlaysList.querySelectorAll('.parlay-card');
+    const parlayCards = parlayContainer.querySelectorAll('.parlay-card');
     parlayCards.forEach(card => {
         if (type === 'all') {
             card.style.display = 'block';
         } else {
-            const parlayType = card.dataset.type;
-            card.style.display = parlayType === type ? 'block' : 'none';
+            const parlayType = card.querySelector('.parlay-type')?.textContent?.toLowerCase();
+            card.style.display = (parlayType === type.toLowerCase()) ? 'block' : 'none';
         }
     });
 }
@@ -376,12 +378,12 @@ if (propsContainer) {
 
 //Update parlays section
 console.log("Updating parlays with:", result.parlays.length);
-const parlaysList = document.getElementById('parlaysList');
-if (parlaysList) {
+const parlaySectionContainer = document.getElementById('parlayRecommendations');
+if (parlaySectionContainer) {
     if (result.parlays.length > 0) {
         updateParlays(result.parlays);
     } else {
-        parlaysList.innerHTML = '<div class="no-data">No parlay recommendations available</div>';
+        parlaySectionContainer.innerHTML = '<div class="no-data">No parlay recommendations available</div>';
     }
 }        // Update stats
         const totalOppElement = document.getElementById('totalOpportunities');
@@ -670,7 +672,7 @@ function updatePlayerProps(props) {
             prop.betType?.toLowerCase().includes('bases') ||
             prop.betType?.toLowerCase().includes('runs') ||
             prop.category?.toLowerCase() === 'hitting' ||
-            prop.betType?.toLowerCase().includes('player')) {
+            (prop.betType?.toLowerCase().includes('player') && !prop.betType?.toLowerCase().includes('pitcher'))) {
             console.log(`Categorized as hitting: ${prop.player || prop.betType}`);
             categorizedProps.hitting.push(prop);
             return;
