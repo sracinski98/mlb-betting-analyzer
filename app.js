@@ -259,43 +259,38 @@ function updateParlays(parlays) {
                                                     betDesc = `Game Total (${teamDisplay})`;
                                                 }
                                                 
+                                                // Enhanced bet display logic
                                                 const legData = {
                                                     total: betTotal,
                                                     isUnder: leg.betType?.toLowerCase().includes('under'),
-                                                    type: leg.propType || leg.type || '',
+                                                    type: leg.betType || leg.propType || leg.type || '',
                                                     player: leg.player || '',
-                                                    team: teamDisplay,
-                                                    betDescription: betDesc
+                                                    team: leg.team || '',
+                                                    homeTeam: leg.homeTeam || '',
+                                                    awayTeam: leg.awayTeam || '',
+                                                    isTeamTotal: leg.betType?.toLowerCase().includes('team total')
                                                 };
+
+                                                // Determine the bet description
+                                                let betDescription = '';
+                                                if (legData.isTeamTotal && legData.team) {
+                                                    betDescription = `${legData.team} Team Total`;
+                                                } else if (legData.homeTeam && legData.awayTeam) {
+                                                    betDescription = `Game Total: ${legData.awayTeam} @ ${legData.homeTeam}`;
+                                                } else if (legData.team) {
+                                                    betDescription = `Game Total (${legData.team})`;
+                                                }
+
                                                 return `
                                                     <div class="bet-line">
                                                         <div class="bet-header">
-                                                            ${legData.betDescription ? 
-                                                                `<div class="bet-desc">
-                                                                    <strong class="bet-type">${legData.betDescription}</strong>
-                                                                </div>` 
-                                                                : legData.team ? 
-                                                                    `<div class="team-info">
-                                                                        <strong class="team-name">${legData.team}</strong>
-                                                                    </div>` 
-                                                                    : legData.homeTeam && legData.awayTeam ? 
-                                                                        `<div class="team-info">
-                                                                            <strong class="team-name">${legData.awayTeam} @ ${legData.homeTeam}</strong>
-                                                                        </div>` 
-                                                                        : ''}
-                                                            ${legData.total ? 
-                                                                `<div class="bet-type-info">
-                                                                    <strong>${legData.isUnder ? 'Under' : 'Over'}</strong>
-                                                                    <span class="total-value">${legData.total}</span>
-                                                                    ${legData.type && !legData.betDescription ? 
-                                                                        `<span class="bet-type">${formatBetType(legData.type)}</span>` 
-                                                                        : ''}
-                                                                </div>` 
-                                                                : legData.type ? 
-                                                                    `<div class="bet-type-info">
-                                                                        <span class="bet-type">${formatBetType(legData.type)}</span>
-                                                                    </div>` 
-                                                                    : ''} 
+                                                            <div class="bet-desc">
+                                                                <strong class="bet-type">${betDescription}</strong>
+                                                            </div>
+                                                            <div class="bet-type-info">
+                                                                <strong class="over-under">${legData.isUnder ? 'UNDER' : 'OVER'}</strong>
+                                                                <span class="total-value">${legData.total}</span>
+                                                            </div> 
                                                         </div>
                                                         <div class="bet-details">
                                                             ${legData.player ? 

@@ -762,9 +762,42 @@ select {
 
 .bet-header {
     display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.bet-desc {
+    background: var(--background);
+    padding: 8px 12px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.bet-desc .bet-type {
+    color: var(--primary-color);
+    font-size: 0.9rem;
+}
+
+.bet-type-info {
+    display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
+    padding: 8px 12px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: var(--border-radius);
+}
+
+.bet-type-info .over-under {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.bet-type-info .total-value {
+    font-family: monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
 }
 
 .bet-details {
@@ -773,10 +806,11 @@ select {
     align-items: center;
     font-size: 0.875rem;
     color: var(--text-secondary);
+    margin-top: 4px;
 }
 
 .player-info, .team-info {
-    font-weight: 500;
+    font-weight: 600;
     color: var(--primary-color);
 }
 
