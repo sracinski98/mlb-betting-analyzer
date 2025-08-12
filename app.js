@@ -105,19 +105,54 @@ function formatBetType(betType) {
 }
 
 function filterPropsByCategory(category) {
-    const sections = document.querySelectorAll('.prop-section');
-    if (category === 'all') {
+    console.log('Filtering by category:', category);
+    
+    // Get all content sections
+    const topPicksSection = document.getElementById('topPicks');
+    const playerPropsSection = document.getElementById('playerProps');
+    const parlaysSection = document.getElementById('parlayRecommendations');
+    
+    // Update active button state
+    const buttons = document.querySelectorAll('.category-btn');
+    buttons.forEach(btn => {
+        if (btn.dataset.category === category) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Show/hide sections based on category
+    switch (category) {
+        case 'team':
+            if (topPicksSection) topPicksSection.style.display = 'block';
+            if (playerPropsSection) playerPropsSection.style.display = 'none';
+            if (parlaysSection) parlaysSection.style.display = 'none';
+            break;
+        case 'props':
+            if (topPicksSection) topPicksSection.style.display = 'none';
+            if (playerPropsSection) playerPropsSection.style.display = 'block';
+            if (parlaysSection) parlaysSection.style.display = 'none';
+            break;
+        case 'parlays':
+            if (topPicksSection) topPicksSection.style.display = 'none';
+            if (playerPropsSection) playerPropsSection.style.display = 'none';
+            if (parlaysSection) parlaysSection.style.display = 'block';
+            break;
+        case 'all':
+        default:
+            if (topPicksSection) topPicksSection.style.display = 'block';
+            if (playerPropsSection) playerPropsSection.style.display = 'block';
+            if (parlaysSection) parlaysSection.style.display = 'block';
+            break;
+    }
+    
+    // If we're in the player props section, also handle sub-categories
+    if (category === 'props' || category === 'all') {
+        const sections = document.querySelectorAll('.prop-section');
         sections.forEach(section => {
             if (!section.classList.contains('empty')) {
                 section.style.display = 'block';
-            }
-        });
-    } else {
-        sections.forEach(section => {
-            if (section.id === `${category}Props` && !section.classList.contains('empty')) {
-                section.style.display = 'block';
-            } else {
-                section.style.display = 'none';
             }
         });
     }
@@ -438,13 +473,39 @@ async function runAnalysis() {
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Content Loaded - Setting up event listeners");
-    const analyzeButton = document.getElementById('analyzeBtn');
     
+    // Set up analyze button
+    const analyzeButton = document.getElementById('analyzeBtn');
     if (analyzeButton) {
         console.log("Analyze button found - adding click listener");
         analyzeButton.addEventListener('click', runAnalysis);
     } else {
         console.error("Analyze button not found in the DOM");
+    }
+    
+    // Set up category filter buttons
+    const categoryButtons = document.querySelectorAll('.category-btn');
+    categoryButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            const category = event.target.dataset.category;
+            console.log('Category button clicked:', category);
+            
+            // Remove active class from all buttons
+            categoryButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+            
+            // Filter content
+            filterPropsByCategory(category);
+        });
+    });
+    
+    // Set initial active category if none is set
+    const activeButton = document.querySelector('.category-btn.active');
+    if (!activeButton && categoryButtons.length > 0) {
+        categoryButtons[0].classList.add('active');
+        filterPropsByCategory(categoryButtons[0].dataset.category || 'all');
     }
     
     // Verify MLBAnalyticsEngine is available
