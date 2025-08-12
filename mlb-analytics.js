@@ -263,7 +263,7 @@ class MLBAnalyticsEngine {
         return recommendations;
     }
 
-    analyzeTeamTrends(games) {
+    analyzeTeamTrends(games, odds = null) {
         const recommendations = [];
         
         // Enhanced team strength analysis with explicit team assignments
@@ -798,7 +798,7 @@ class MLBAnalyticsEngine {
                 allRecommendations.push(...this.analyzeWeatherImpact(weather));
             }
             console.log("🏟️ Analyzing team trends...");
-            allRecommendations.push(...this.analyzeTeamTrends(games));
+            allRecommendations.push(...this.analyzeTeamTrends(games, odds));
             console.log("⚾ Analyzing starting pitchers...");
             allRecommendations.push(...this.analyzeStartingPitchers(games));
             console.log("🏟️ Analyzing venue factors...");
