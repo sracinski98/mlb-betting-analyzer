@@ -1,10 +1,6 @@
 [build]
   publish = "."
-  command = """
-    pip install -r requirements.txt
-    pip install -r netlify/functions/requirements.txt
-    cp -r mlb_analyzer netlify/functions/
-  """
+  command = "echo 'No build required'"
   functions = "netlify/functions"
 
 [functions]
@@ -13,8 +9,6 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  PYTHON_VERSION = "3.9"
-  PIP_FLAGS = "--no-cache-dir"
 
 [[headers]]
   for = "/*"
