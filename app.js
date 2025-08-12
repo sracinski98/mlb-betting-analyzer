@@ -276,16 +276,34 @@ function updateParlays(parlays) {
                                                 
                                                 // Enhanced bet display logic
                                                 const legData = {
-                                                    total: betTotal || 'N/A',  // Ensure we always have a value
+                                                    total: betTotal,  // Raw total value
                                                     isUnder: leg.betType?.toLowerCase().includes('under'),
                                                     type: leg.betType || leg.propType || leg.type || '',
                                                     player: leg.player || '',
                                                     team: leg.team || '',
                                                     homeTeam: leg.homeTeam || '',
                                                     awayTeam: leg.awayTeam || '',
-                                                    isTeamTotal: leg.betType?.toLowerCase().includes('team total')
+                                                    isTeamTotal: leg.betType?.toLowerCase().includes('team total'),
+                                                    propLine: leg.propLine,
+                                                    description: leg.description,
+                                                    betDesc: leg.betDesc,
+                                                    line: leg.line,
+                                                    value: leg.value
                                                 };
                                                 
+                                                // Debug logging to see exact values
+                                                console.log('Raw leg data:', {
+                                                    propLine: leg.propLine,
+                                                    line: leg.line,
+                                                    value: leg.value,
+                                                    total: leg.total,
+                                                    betDesc: leg.betDesc,
+                                                    description: leg.description,
+                                                    betType: leg.betType,
+                                                    team: leg.team,
+                                                    homeTeam: leg.homeTeam,
+                                                    awayTeam: leg.awayTeam
+                                                });
                                                 console.log('Processed leg data:', legData);
 
                                                 // Enhanced bet description logic
@@ -298,15 +316,37 @@ function updateParlays(parlays) {
                                                     betDescription = `Game Total (${legData.team})`;
                                                 }
 
+                                                // Determine the display value for the bet
+                                                const displayTotal = (() => {
+                                                    // Try each possible source for the total value
+                                                    if (leg.propLine && leg.propLine.match(/\d+/)) {
+                                                        return leg.propLine.match(/(\d+\.?\d*)/)[1];
+                                                    }
+                                                    if (leg.line) return leg.line;
+                                                    if (leg.value) return leg.value;
+                                                    if (leg.total) return leg.total;
+                                                    if (leg.betDesc && leg.betDesc.match(/\d+/)) {
+                                                        return leg.betDesc.match(/(\d+\.?\d*)/)[1];
+                                                    }
+                                                    if (leg.description && leg.description.match(/\d+/)) {
+                                                        return leg.description.match(/(\d+\.?\d*)/)[1];
+                                                    }
+                                                    return null;
+                                                })();
+
+                                                // If we have no total value, try to show the raw bet description
+                                                const displayBetInfo = displayTotal 
+                                                    ? `${legData.isUnder ? 'UNDER' : 'OVER'} ${displayTotal}`
+                                                    : (leg.betDesc || leg.description || leg.propLine || 'No bet details available');
+
                                                 return `
                                                     <div class="bet-line">
                                                         <div class="bet-header">
                                                             <div class="bet-desc">
-                                                                <strong class="bet-type">${betDescription}</strong>
+                                                                <strong class="bet-type">${betDescription || 'Game Total'}</strong>
                                                             </div>
                                                             <div class="bet-type-info">
-                                                                <strong class="over-under">${legData.isUnder ? 'UNDER' : 'OVER'}</strong>
-                                                                <span class="total-value">${legData.total}</span>
+                                                                <span class="bet-details">${displayBetInfo}</span>
                                                             </div> 
                                                         </div>
                                                         <div class="bet-details">

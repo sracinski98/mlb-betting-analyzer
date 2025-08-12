@@ -782,21 +782,32 @@ select {
 .bet-type-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
     padding: 8px 12px;
     background: var(--primary-color);
     color: white;
     border-radius: var(--border-radius);
+    margin-top: 8px;
 }
 
-.bet-type-info .over-under {
-    font-weight: 700;
-    letter-spacing: 0.5px;
-}
-
-.bet-type-info .total-value {
+.bet-type-info .bet-details {
     font-family: monospace;
     font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-align: center;
+}
+
+.bet-desc {
+    background: var(--background);
+    padding: 12px;
+    border-radius: var(--border-radius);
+    text-align: center;
+}
+
+.bet-desc .bet-type {
+    color: var(--primary-color);
+    font-size: 1rem;
     font-weight: 600;
 }
 
