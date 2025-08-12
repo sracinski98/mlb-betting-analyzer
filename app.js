@@ -225,36 +225,37 @@ function formatBetType(betType) {
     if (betType.includes('player_')) {
         const parts = betType.split('_');
         if (parts.includes('over')) {
-            return `Over ${parts.slice(1, -1).join(' ')}`;
+            const propType = parts.slice(1, -1).join(' ').toUpperCase();
+            return `OVER ${propType}`;
         }
         if (parts.includes('under')) {
-            return `Under ${parts.slice(1, -1).join(' ')}`;
+            const propType = parts.slice(1, -1).join(' ').toUpperCase();
+            return `UNDER ${propType}`;
         }
     }
     
     // Handle team totals
     if (betType.includes('total')) {
-        if (betType.includes('over')) return 'Over Team Total';
-        if (betType.includes('under')) return 'Under Team Total';
-        return 'Team Total';
+        if (betType.includes('over')) return 'OVER TEAM TOTAL';
+        if (betType.includes('under')) return 'UNDER TEAM TOTAL';
+        return 'TEAM TOTAL';
     }
     
     // Handle moneyline
-    if (betType.includes('ml')) return 'Moneyline';
+    if (betType.includes('ml')) return 'MONEYLINE';
     
     // Handle runline
-    if (betType.includes('runline')) return 'Run Line';
+    if (betType.includes('runline')) return 'RUN LINE';
     
     // Handle first 5
-    if (betType.includes('f5') || betType.includes('first_5')) return 'First 5 Innings';
+    if (betType.includes('f5') || betType.includes('first_5')) return 'FIRST 5 INNINGS';
     
-    // Convert under_total to "Under Total"
+    // Convert to uppercase
     const formatted = betType
         .split('_')
         .map(word => {
             // Special case for RBI, HR, etc.
-            if (word.toUpperCase() === word) return word;
-            return word.charAt(0).toUpperCase() + word.slice(1);
+            return word.toUpperCase();
         })
         .join(' ');
     
@@ -355,6 +356,12 @@ async function trackBet(bet) {
         button.textContent = '✓ Tracked';
         button.classList.add('tracked');
         showNotification('Bet tracked successfully!', 'success');
+        
+        // Immediately load tracked bets if we're on the tracked tab
+        const trackedTab = document.querySelector('.tab-pane#tracked');
+        if (trackedTab && trackedTab.classList.contains('active')) {
+            loadTrackedBets();
+        }
     } catch (error) {
         console.error('Error tracking bet:', error);
         button.disabled = false;
@@ -428,6 +435,7 @@ async function loadTrackedBets() {
 
 function updateTrackedBetsUI(bets) {
     const trackedBetsContainer = document.getElementById('trackedBets');
+    console.log('Updating tracked bets UI with:', bets); // Debug log
     
     if (!bets || bets.length === 0) {
         trackedBetsContainer.innerHTML = `
@@ -439,28 +447,32 @@ function updateTrackedBetsUI(bets) {
         return;
     }
     
-    trackedBetsContainer.innerHTML = bets.map(record => `
-        <div class="tracked-bet-card ${record.status || 'pending'}">
-            <div class="bet-header score-${getConfidenceClass(record.bets[0].score)}">
-                <span class="score">${record.bets[0].score.toFixed(1)}/10</span>
-                <span class="confidence">${getConfidenceLabel(record.bets[0].score)}</span>
-                <span class="status-badge">${record.status || 'Pending'}</span>
-            </div>
-            <div class="bet-content">
-                ${record.bets.map(bet => `
+    trackedBetsContainer.innerHTML = bets.map(record => {
+        // Handle both single bet and bet array formats
+        const bet = Array.isArray(record.bets) ? record.bets[0] : record;
+        const score = bet.score || bet.avgScore || 0;
+        
+        return `
+            <div class="tracked-bet-card ${record.status || 'pending'}">
+                <div class="bet-header score-${getConfidenceClass(score)}">
+                    <span class="score">${score.toFixed(1)}/10</span>
+                    <span class="confidence">${getConfidenceLabel(score)}</span>
+                    <span class="status-badge">${record.status || 'PENDING'}</span>
+                </div>
+                <div class="bet-content">
                     <div class="bet-detail">
                         <h3>${formatBetType(bet.betType)}</h3>
                         <p class="matchup">${bet.matchup || bet.player || ''}</p>
                         ${bet.odds ? `<p class="odds">Odds: ${formatOdds(bet.odds)}</p>` : ''}
                         <p class="reason">${bet.reason || ''}</p>
                     </div>
-                `).join('')}
-                <div class="bet-metadata">
-                    <span class="timestamp">Tracked: ${new Date(record.createdAt).toLocaleDateString()}</span>
+                    <div class="bet-metadata">
+                        <span class="timestamp">Tracked: ${new Date(record.createdAt).toLocaleDateString()}</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Load tracked bets when switching to tracked tab
