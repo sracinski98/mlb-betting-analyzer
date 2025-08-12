@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
 async function getTodaysGames() {
   const date = new Date().toISOString().split('T')[0];

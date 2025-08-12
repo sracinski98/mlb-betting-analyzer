@@ -1,6 +1,6 @@
 [build]
   publish = "."
-  command = "echo 'No build required'"
+  command = "npm install"
   functions = "netlify/functions"
 
 [functions]
@@ -42,3 +42,6 @@
 
 [[plugins]]
   package = "@netlify/plugin-sitemap"
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
