@@ -1,20 +1,51 @@
 from http.server import BaseHTTPRequestHandler
 import sys
 import os
+import logging
+import traceback
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Add the project root to Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(project_root)
+logger.info(f"Python path: {sys.path}")
+logger.info(f"Current directory: {os.getcwd()}")
+logger.info(f"Project root: {project_root}")
 
-from mlb_analyzer.data.mlb_api import MLBApi
-import json
+try:
+    from mlb_analyzer.data.mlb_api import MLBApi
+    import json
+    logger.info("Successfully imported MLBApi")
+except Exception as e:
+    logger.error(f"Error importing MLBApi: {str(e)}")
+    logger.error(traceback.format_exc())
+    raise
 
-mlb_api = MLBApi(odds_api_key=os.environ.get('ODDS_API_KEY', 'fe3e1db58259d6d7d3599e2ae3d22ecc'))
+try:
+    odds_api_key = os.environ.get('ODDS_API_KEY', 'fe3e1db58259d6d7d3599e2ae3d22ecc')
+    mlb_api = MLBApi(odds_api_key=odds_api_key)
+    logger.info("Successfully initialized MLBApi")
+except Exception as e:
+    logger.error(f"Error initializing MLBApi: {str(e)}")
+    logger.error(traceback.format_exc())
+    raise
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
+            logger.info("Received GET request")
+            
+            # Log environment variables (excluding sensitive data)
+            env_vars = {k: v for k, v in os.environ.items() if 'KEY' not in k.upper()}
+            logger.info(f"Environment variables: {env_vars}")
+            
             # Get today's games and analysis
+            logger.info("Starting game analysis")
             recommendations = analyze_games(mlb_api)
+            logger.info(f"Analysis complete. Found {len(recommendations.get('team_bets', []))} team bets and {len(recommendations.get('parlays', []))} parlays")
             
             # Send response with CORS headers
             self.send_response(200)
@@ -24,15 +55,19 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Headers', 'Content-Type')
             self.end_headers()
             self.wfile.write(json.dumps(recommendations).encode())
+            logger.info("Response sent successfully")
             return
             
         except Exception as e:
             import traceback
+            error_msg = str(e)
+            tb = traceback.format_exc()
             error_details = {
-                "error": str(e),
-                "traceback": traceback.format_exc()
+                "error": f"Analysis failed: {error_msg}",
+                "traceback": tb
             }
-            print("Error in handler:", error_details)  # This will appear in Netlify function logs
+            print("Error in handler:", error_msg)
+            print("Traceback:", tb)  # This will appear in Netlify function logs
             
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
@@ -46,12 +81,22 @@ class handler(BaseHTTPRequestHandler):
 def analyze_games(mlb_api):
     """Analyze all MLB games and return betting recommendations."""
     try:
+        print("Starting analyze_games function")
+        
         # Constants for betting analysis
         VALUE_THRESHOLD = 0.03  # 3% edge required for value bets
         PARLAY_PROB_THRESHOLD = 0.70  # 70% minimum probability for parlay legs
         MIN_ODDS = -250  # Don't consider heavy favorites beyond -250
         MIN_RUNS = 4.5  # Minimum recent runs per game for value bets
         MIN_WIN_PCT = 0.65  # Minimum win percentage for value bets
+        
+        print("Fetching live games...")
+        games_df = mlb_api.get_live_games()
+        print(f"Got live games: {len(games_df) if not games_df.empty else 0} games found")
+        
+        print("Fetching live odds...")
+        odds_df = mlb_api.get_live_odds()
+        print(f"Got live odds: {len(odds_df) if not odds_df.empty else 0} odds entries found")
         
         # Get today's games and odds
         games_df = mlb_api.get_live_games()

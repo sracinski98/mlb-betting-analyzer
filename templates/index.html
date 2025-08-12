@@ -1,164 +1,172 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MLB Betting Analyzer</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .error { color: red; }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .bet-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .bet-card {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+        }
+        .bet-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .bet-detail {
+            margin: 5px 0;
+            color: #495057;
+        }
+        .positive-odds {
+            color: #28a745;
+        }
+        .negative-odds {
+            color: #dc3545;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+        h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+    </style>
 </head>
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-4xl font-bold text-center mb-8">MLB Betting Analyzer</h1>
-        
-        <div class="text-center mb-8">
-            <button id="analyzeBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Analyze Today's Games
-            </button>
-        </div>
-        
-        <div id="loading" class="hidden text-center">
-            <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
-            <p class="mt-4 text-lg">Analyzing games...</p>
-        </div>
-        
-        <div id="results" class="hidden">
-            <!-- Team Bets -->
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold mb-4">Team Bets</h2>
-                <div id="teamBets" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- Team bets will be inserted here -->
-                </div>
-            </div>
-            
-            <!-- Player Props -->
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold mb-4">Player Props</h2>
-                <div id="playerProps" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- Player props will be inserted here -->
-                </div>
-            </div>
-            
-            <!-- Parlays -->
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold mb-4">Recommended Parlays</h2>
-                <div id="parlays" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Parlays will be inserted here -->
-                </div>
-            </div>
-        </div>
-    </div>
+<body>
+    <h1>MLB Betting Analyzer</h1>
+    <button onclick="analyze()">Get Analysis</button>
+    <div id="loading" style="display: none;" class="loading">Loading...</div>
+    <div id="result"></div>
 
     <script>
-        document.getElementById('analyzeBtn').addEventListener('click', async () => {
-            const loading = document.getElementById('loading');
-            const results = document.getElementById('results');
-            const teamBets = document.getElementById('teamBets');
-            const playerProps = document.getElementById('playerProps');
-            const parlays = document.getElementById('parlays');
-            
-            // Show loading, hide results
-            loading.classList.remove('hidden');
-            results.classList.add('hidden');
+        function formatOdds(odds) {
+            return odds > 0 ? `+${odds}` : odds.toString();
+        }
+
+        function formatProbability(prob) {
+            return prob.toFixed(1) + '%';
+        }
+
+        function renderBets(data) {
+            const resultEl = document.getElementById('result');
+            let html = '';
+
+            // Team Bets Section
+            if (data.team_bets && data.team_bets.length > 0) {
+                html += `
+                    <div class="section">
+                        <h2>Team Bets</h2>
+                        <div class="bet-grid">
+                `;
+                
+                data.team_bets.forEach(bet => {
+                    const oddsClass = bet.odds > 0 ? 'positive-odds' : 'negative-odds';
+                    html += `
+                        <div class="bet-card">
+                            <div class="bet-header">${bet.matchup}</div>
+                            <div class="bet-detail">Team: ${bet.team}</div>
+                            <div class="bet-detail">Type: ${bet.bet_type}</div>
+                            <div class="bet-detail">Odds: <span class="${oddsClass}">${formatOdds(bet.odds)}</span></div>
+                            <div class="bet-detail">Implied Probability: ${formatProbability(bet.implied_prob)}</div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div></div>';
+            }
+
+            // Parlays Section
+            if (data.parlays && data.parlays.length > 0) {
+                html += `
+                    <div class="section">
+                        <h2>Recommended Parlay</h2>
+                        <div class="bet-grid">
+                `;
+                
+                data.parlays.forEach(parlay => {
+                    const oddsClass = parlay.odds > 0 ? 'positive-odds' : 'negative-odds';
+                    html += `
+                        <div class="bet-card">
+                            <div class="bet-header">${parlay.leg}</div>
+                            <div class="bet-detail">Team: ${parlay.team}</div>
+                            <div class="bet-detail">Odds: <span class="${oddsClass}">${formatOdds(parlay.odds)}</span></div>
+                            <div class="bet-detail">Implied Probability: ${formatProbability(parlay.implied_prob)}</div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div></div>';
+            }
+
+            resultEl.innerHTML = html;
+        }
+
+        async function analyze() {
+            const resultEl = document.getElementById('result');
+            const loadingEl = document.getElementById('loading');
             
             try {
+                loadingEl.style.display = 'block';
+                resultEl.innerHTML = '';
+                
                 const response = await fetch('/analyze');
                 const data = await response.json();
                 
-                // Clear previous results
-                teamBets.innerHTML = '';
-                playerProps.innerHTML = '';
-                parlays.innerHTML = '';
-                
-                // Render team bets
-                data.team_bets.forEach(bet => {
-                    const card = document.createElement('div');
-                    card.className = 'bg-white rounded-lg shadow-md p-4';
-                    card.innerHTML = `
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="font-bold">${bet.team}</span>
-                            <span class="text-sm ${bet.odds > 0 ? 'text-green-600' : 'text-red-600'}">
-                                ${bet.odds > 0 ? '+' : ''}${bet.odds}
-                            </span>
-                        </div>
-                        <div class="text-sm text-gray-600">
-                            <div>Type: ${bet.type}</div>
-                            <div>Probability: ${(bet.probability * 100).toFixed(1)}%</div>
-                            <div>Value: ${(bet.value * 100).toFixed(1)}%</div>
-                            <div class="mt-2">
-                                <span class="px-2 py-1 rounded text-sm ${
-                                    bet.confidence === 'high' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                }">
-                                    ${bet.confidence.toUpperCase()} confidence
-                                </span>
-                            </div>
-                        </div>
-                    `;
-                    teamBets.appendChild(card);
-                });
-                
-                // Render player props
-                data.player_props.forEach(prop => {
-                    const card = document.createElement('div');
-                    card.className = 'bg-white rounded-lg shadow-md p-4';
-                    card.innerHTML = `
-                        <div class="font-bold mb-2">${prop.player}</div>
-                        <div class="text-sm text-gray-600">
-                            <div>${prop.prop_type} ${prop.bet.toUpperCase()} ${prop.line}</div>
-                            <div class="text-sm ${prop.odds > 0 ? 'text-green-600' : 'text-red-600'}">
-                                ${prop.odds > 0 ? '+' : ''}${prop.odds}
-                            </div>
-                            <div>Value: ${(prop.value * 100).toFixed(1)}%</div>
-                            <div class="mt-2">
-                                <span class="px-2 py-1 rounded text-sm ${
-                                    prop.confidence === 'high' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                }">
-                                    ${prop.confidence.toUpperCase()} confidence
-                                </span>
-                            </div>
-                        </div>
-                    `;
-                    playerProps.appendChild(card);
-                });
-                
-                // Render parlays
-                data.parlays.forEach(parlay => {
-                    const card = document.createElement('div');
-                    card.className = 'bg-white rounded-lg shadow-md p-4';
-                    card.innerHTML = `
-                        <div class="font-bold mb-2">
-                            ${parlay.legs.length}-Leg Parlay
-                            <span class="text-sm ${parlay.odds > 0 ? 'text-green-600' : 'text-red-600'}">
-                                ${parlay.odds > 0 ? '+' : ''}${parlay.odds}
-                            </span>
-                        </div>
-                        <div class="text-sm text-gray-600">
-                            <div>Probability: ${(parlay.probability * 100).toFixed(1)}%</div>
-                            <div class="mt-2">Legs:</div>
-                            <ul class="list-disc list-inside">
-                                ${parlay.legs.map(leg => `<li>${leg}</li>`).join('')}
-                            </ul>
-                            <div class="mt-2">
-                                <span class="px-2 py-1 rounded text-sm ${
-                                    parlay.confidence === 'high' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                }">
-                                    ${parlay.confidence.toUpperCase()} confidence
-                                </span>
-                            </div>
-                        </div>
-                    `;
-                    parlays.appendChild(card);
-                });
-                
-                // Hide loading, show results
-                loading.classList.add('hidden');
-                results.classList.remove('hidden');
-                
+                if (data.error) {
+                    resultEl.innerHTML = `<span class="error">Error: ${data.error}</span>`;
+                    console.error('Server Error:', data);
+                } else {
+                    renderBets(data);
+                }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error analyzing games. Please try again.');
-                loading.classList.add('hidden');
+                resultEl.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+                console.error('Request Error:', error);
+            } finally {
+                loadingEl.style.display = 'none';
             }
-        });
+        }
     </script>
 </body>
 </html>
