@@ -110,7 +110,7 @@ function filterPropsByCategory(category) {
     // Get all content sections
     const topPicksSection = document.getElementById('topPicks');
     const playerPropsSection = document.getElementById('playerProps');
-    const parlaysSection = document.getElementById('parlayRecommendations');
+    const parlaysSection = document.getElementById('parlaysList');
     
     // Log section visibility before change
     console.log('Section visibility before filter:', {
@@ -171,11 +171,12 @@ function filterPropsByCategory(category) {
 function updateParlays(parlays) {
     console.log('Updating parlays with data:', parlays);
     
-    const parlayContainer = document.getElementById('parlayRecommendations');
+    const parlayContainer = document.getElementById('parlaysList');
     if (!parlayContainer) {
-        console.error('Parlay container not found in the DOM');
+        console.error('Parlay container not found in the DOM: Make sure there is an element with id="parlaysList"');
         return;
     }
+    console.log('Found parlay container:', parlayContainer);
 
     if (!Array.isArray(parlays)) {
         console.error('Parlays is not an array:', parlays);
@@ -250,8 +251,11 @@ function formatCategory(category) {
 function filterParlaysByType(type) {
     console.log('Filtering parlays by type:', type);
     
-    const parlayContainer = document.getElementById('parlayRecommendations');
-    if (!parlayContainer) return;
+    const parlayContainer = document.getElementById('parlaysList');
+    if (!parlayContainer) {
+        console.error('Parlay container not found while filtering');
+        return;
+    }
     
     const parlayCards = parlayContainer.querySelectorAll('.parlay-card');
     parlayCards.forEach(card => {
