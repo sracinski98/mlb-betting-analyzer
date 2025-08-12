@@ -344,18 +344,46 @@ function updateUI(result) {
             }
         }
         
-        // Update player props section
-        console.log("Updating player props with recommendations:", result.recommendations.length);
-        const propsContainer = document.getElementById('playerProps');
-        if (propsContainer) {
-            if (result.recommendations.length > 0) {
-                updatePlayerProps(result.recommendations);
-            } else {
-                propsContainer.innerHTML = '<div class="no-data">No player props available</div>';
-            }
-        }
-        
-        // Update stats
+//Update team bets section
+console.log("Updating team bets with recommendations:", result.recommendations.length);
+const teamBetsContainer = document.getElementById('teamBets');
+if (teamBetsContainer) {
+    const teamBets = result.recommendations.filter(rec => 
+        !rec.player && (rec.betType?.toLowerCase().includes('ml') || 
+        rec.betType?.toLowerCase().includes('total') || 
+        rec.betType?.toLowerCase().includes('line'))
+    );
+    console.log("Team bets filtered:", teamBets.length);
+    if (teamBets.length > 0) {
+        teamBetsContainer.innerHTML = renderPropCards(teamBets, 'team-bet');
+    } else {
+        teamBetsContainer.innerHTML = '<div class="no-data">No team bets available</div>';
+    }
+}
+
+//Update player props section
+console.log("Updating player props with recommendations:", result.recommendations.length);
+const propsContainer = document.getElementById('playerProps');
+if (propsContainer) {
+    const playerProps = result.recommendations.filter(rec => rec.player || rec.betType?.toLowerCase().includes('player'));
+    console.log("Player props filtered:", playerProps.length);
+    if (playerProps.length > 0) {
+        updatePlayerProps(playerProps);
+    } else {
+        propsContainer.innerHTML = '<div class="no-data">No player props available</div>';
+    }
+}
+
+//Update parlays section
+console.log("Updating parlays with:", result.parlays.length);
+const parlaysList = document.getElementById('parlaysList');
+if (parlaysList) {
+    if (result.parlays.length > 0) {
+        updateParlays(result.parlays);
+    } else {
+        parlaysList.innerHTML = '<div class="no-data">No parlay recommendations available</div>';
+    }
+}        // Update stats
         const totalOppElement = document.getElementById('totalOpportunities');
         if (totalOppElement) {
             totalOppElement.textContent = result.recommendations.length.toString();
@@ -538,14 +566,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const categoryButtons = document.querySelectorAll('.category-btn');
     categoryButtons.forEach(button => {
         button.addEventListener('click', (event) => {
-            const category = event.target.dataset.category;
+            const button = event.target.closest('.category-btn');
+            if (!button) return;
+            
+            const category = button.dataset.category;
             console.log('Category button clicked:', category);
             
             // Remove active class from all buttons
             categoryButtons.forEach(btn => btn.classList.remove('active'));
             
             // Add active class to clicked button
-            event.target.classList.add('active');
+            button.classList.add('active');
             
             // Filter content
             filterPropsByCategory(category);
@@ -622,6 +653,8 @@ function updatePlayerProps(props) {
             prop.betType?.toLowerCase().includes('strikeout') ||
             prop.betType?.toLowerCase().includes('quality_start') ||
             prop.betType?.toLowerCase().includes('innings') ||
+            prop.betType?.toLowerCase().includes('outs') ||
+            prop.betType?.toLowerCase().includes('earned_runs') ||
             prop.category?.toLowerCase() === 'pitching' ||
             prop.position === 'P' ||
             prop.player?.toLowerCase().includes('pitcher')) {
@@ -645,6 +678,10 @@ function updatePlayerProps(props) {
 
         // Check for streaks
         if (prop.propFactor === 'hot_streak' ||
+            prop.hotStreak ||
+            prop.streak ||
+            prop.reason?.toLowerCase().includes('streak') ||
+            prop.reason?.toLowerCase().includes('consecutive') ||
             (prop.player && window.MLBAnalyticsEngine?.prototype?.playerDatabase?.[prop.player]?.hotStreak)) {
             console.log(`Categorized as streak: ${prop.player || prop.betType}`);
             categorizedProps.streaks.push(prop);
