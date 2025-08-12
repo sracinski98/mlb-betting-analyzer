@@ -1,4 +1,10 @@
 import fetch from 'node-fetch';
+import {
+  getPlayerId,
+  getStartingPitcherId,
+  calculatePitchingRecommendation,
+  calculateBatterRecommendation
+} from './playerUtils.js';
 
 async function getTodaysGames() {
   const date = new Date().toISOString().split('T')[0];
@@ -69,11 +75,26 @@ function calculateBetScore(impliedProb, odds, historicalData = null) {
   return Math.round(score * 2) / 2;
 }
 
-async function getPlayerStats(playerId) {
+import {
+  getPitcherStats,
+  getBatterVsPitcherStats,
+  analyzeHotStreak,
+  analyzeSituationalFactors
+} from './statsAnalyzer.js';
+
+async function getPlayerStats(playerId, isPitcher = false) {
   try {
+    // Get basic stats
     const statsUrl = `https://statsapi.mlb.com/api/v1/people/${playerId}/stats/game/mlb?season=2024`;
     const response = await fetch(statsUrl);
     const data = await response.json();
+
+    // Get additional stats based on player type
+    if (isPitcher) {
+      const pitcherStats = await getPitcherStats(playerId);
+      return { ...data, pitching: pitcherStats };
+    }
+
     return data;
   } catch (error) {
     console.error('Error fetching player stats:', error);
@@ -81,10 +102,13 @@ async function getPlayerStats(playerId) {
   }
 }
 
-function findValueBets(games, oddsData) {
+async function findValueBets(games, oddsData) {
   const valueBets = [];
   const parlayOpportunities = [];
   const playerProps = [];
+  const pitchingProps = [];
+  const situationalBets = [];
+  const hotStreakBets = [];
 
   // Map MLB API team names to betting site team names
   const teamNameMap = {
@@ -142,22 +166,77 @@ function findValueBets(games, oddsData) {
 
         // Handle player props
         const propMarkets = bookmaker.markets.filter(m => m.key.includes('player'));
-        propMarkets.forEach(market => {
-          market.outcomes.forEach(outcome => {
+        for (const market of propMarkets) {
+          for (const outcome of market.outcomes) {
             const impliedProb = calculateImpliedProbability(outcome.price);
             const betScore = calculateBetScore(impliedProb, outcome.price);
             
-            playerProps.push({
-              matchup,
-              player: outcome.name,
-              prop_type: market.key,
-              line: outcome.point || 'N/A',
-              odds: outcome.price,
-              implied_prob: impliedProb,
-              score: betScore,
-              recommendation: betScore >= 8 ? 'Strong Bet' : betScore >= 6 ? 'Consider' : 'Monitor'
-            });
-          });
+            // Get player details from MLB API
+            const playerNameParts = outcome.name.split(' ');
+            // You'll need to implement a function to get player ID from name
+            const playerId = await getPlayerId(playerNameParts.join(' '));
+            
+            if (playerId) {
+              // Get player stats and analyze hot streaks
+              const playerStats = await getPlayerStats(playerId);
+              const hotStreakAnalysis = analyzeHotStreak(playerStats?.recentGames || []);
+              
+              // For pitcher props
+              if (market.key.includes('strikeouts') || market.key.includes('earned_runs')) {
+                const pitcherStats = await getPitcherStats(playerId);
+                const situationalFactors = analyzeSituationalFactors(pitcherStats, game);
+                
+                pitchingProps.push({
+                  matchup,
+                  pitcher: outcome.name,
+                  prop_type: market.key,
+                  line: outcome.point || 'N/A',
+                  odds: outcome.price,
+                  implied_prob: impliedProb,
+                  score: betScore,
+                  hot_streak: hotStreakAnalysis,
+                  situational_factors: situationalFactors,
+                  recommendation: calculatePitchingRecommendation(betScore, hotStreakAnalysis, situationalFactors)
+                });
+              } 
+              // For batter props
+              else {
+                // Get pitcher ID for the opposing team
+                const opposingPitcherId = getStartingPitcherId(game, outcome.name);
+                let batterVsPitcher = null;
+                if (opposingPitcherId) {
+                  batterVsPitcher = await getBatterVsPitcherStats(playerId, opposingPitcherId);
+                }
+                
+                const situationalFactors = analyzeSituationalFactors(playerStats, game);
+                
+                playerProps.push({
+                  matchup,
+                  player: outcome.name,
+                  prop_type: market.key,
+                  line: outcome.point || 'N/A',
+                  odds: outcome.price,
+                  implied_prob: impliedProb,
+                  score: betScore,
+                  hot_streak: hotStreakAnalysis,
+                  batter_vs_pitcher: batterVsPitcher,
+                  situational_factors: situationalFactors,
+                  recommendation: calculateBatterRecommendation(betScore, hotStreakAnalysis, batterVsPitcher, situationalFactors)
+                });
+              }
+              
+              // Add to hot streak bets if applicable
+              if (hotStreakAnalysis?.isHot) {
+                hotStreakBets.push({
+                  player: outcome.name,
+                  prop_type: market.key,
+                  hot_streak_details: hotStreakAnalysis,
+                  odds: outcome.price,
+                  recommendation: 'Hot Streak Play'
+                });
+              }
+            }
+          }
         });
 
         // Simple parlay logic - if odds are favorable
@@ -172,10 +251,19 @@ function findValueBets(games, oddsData) {
     }
   });
 
+  // Sort hot streak bets by confidence
+  const sortedHotStreakBets = hotStreakBets.sort((a, b) => 
+    (b.hot_streak_details.battingStats.recentAvg || 0) - 
+    (a.hot_streak_details.battingStats.recentAvg || 0)
+  );
+
   return {
     team_bets: valueBets,
     player_props: playerProps,
-    parlays: parlayOpportunities.slice(0, 3) // Return top 3 parlay opportunities
+    pitching_props: pitchingProps,
+    hot_streak_bets: sortedHotStreakBets.slice(0, 5), // Top 5 hot streak bets
+    situational_bets: situationalBets,
+    parlays: parlayOpportunities.slice(0, 3) // Top 3 parlay opportunities
   };
 }
 
@@ -213,6 +301,9 @@ exports.handler = async function (event, context) {
         body: JSON.stringify({
           team_bets: [],
           player_props: [],
+          pitching_props: [],
+          hot_streak_bets: [],
+          situational_bets: [],
           parlays: [],
           message: 'No games found for today'
         })
@@ -227,6 +318,9 @@ exports.handler = async function (event, context) {
         body: JSON.stringify({
           team_bets: [],
           player_props: [],
+          pitching_props: [],
+          hot_streak_bets: [],
+          situational_bets: [],
           parlays: [],
           message: 'No odds data available'
         })
