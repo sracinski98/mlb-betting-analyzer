@@ -1,24 +1,24 @@
 import fetch from 'node-fetch';
-import {
-  getPlayerId,
-  getStartingPitcherId,
-  calculatePitchingRecommendation,
-  calculateBatterRecommendation
-} from './playerUtils.js';
+import { analyzeGame } from './betAnalyzer.js';
 
 async function getTodaysGames() {
   const date = new Date().toISOString().split('T')[0];
   const mlbApiUrl = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}`;
   
-  const response = await fetch(mlbApiUrl);
-  const data = await response.json();
-  return data.dates[0]?.games || [];
+  try {
+    const response = await fetch(mlbApiUrl);
+    const data = await response.json();
+    return data.dates[0]?.games || [];
+  } catch (error) {
+    console.error('Error fetching games:', error);
+    return [];
+  }
 }
 
 async function getOdds() {
   try {
     const apiKey = process.env.ODDS_API_KEY || 'fe3e1db58259d6d7d3599e2ae3d22ecc';
-    const oddsUrl = `https://api.the-odds-api.com/v4/sports/baseball_mlb/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals,player_props&oddsFormat=american`;
+    const oddsUrl = `https://api.the-odds-api.com/v4/sports/baseball_mlb/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals,player_props,pitcher_strikeouts,pitcher_outs,batter_hits&oddsFormat=american`;
     
     const response = await fetch(oddsUrl);
     if (!response.ok) {
@@ -103,12 +103,28 @@ async function getPlayerStats(playerId, isPitcher = false) {
 }
 
 async function findValueBets(games, oddsData) {
+  console.log('Starting value bets analysis...');
+  
   const valueBets = [];
   const parlayOpportunities = [];
   const playerProps = [];
   const pitchingProps = [];
   const situationalBets = [];
   const hotStreakBets = [];
+  
+  // Ensure we have valid odds data
+  const odds = Array.isArray(oddsData) ? oddsData : [];
+  if (odds.length === 0) {
+    console.log('No odds data available for analysis');
+    return {
+      team_bets: [],
+      player_props: [],
+      pitching_props: [],
+      hot_streak_bets: [],
+      situational_bets: [],
+      parlays: []
+    };
+  }
 
   // Map MLB API team names to betting site team names
   const teamNameMap = {
@@ -124,10 +140,13 @@ async function findValueBets(games, oddsData) {
   // Ensure oddsData is an array
   const odds = Array.isArray(oddsData) ? oddsData : [oddsData];
 
-  games.forEach(game => {
+  // Process games in parallel
+  const gamePromises = games.map(async (game) => {
     const homeTeam = game.teams.home.team.name;
     const awayTeam = game.teams.away.team.name;
     const matchup = `${awayTeam} vs ${homeTeam}`;
+    
+    console.log(`Processing game: ${matchup}`);
 
     const matchingOdds = odds.find(odd => {
       const homeTeamMatch = odd.home_team === homeTeam || 
