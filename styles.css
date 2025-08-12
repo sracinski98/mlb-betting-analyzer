@@ -304,55 +304,131 @@ select {
     color: var(--primary-color);
 }
 
-/* Picks Grid */
-.picks-grid {
+/* Props Grid */
+.props-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 1.5rem;
+    padding: 1rem;
 }
 
-.pick-card, .bet-card {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin: 10px;
+.prop-card {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    position: relative;
     overflow: hidden;
-    transition: transform 0.2s ease-in-out;
-    width: 300px;
 }
 
-.bet-details, .pick-content {
-    padding: 15px;
+.prop-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-color);
 }
 
-.team {
+.prop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.prop-type {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    background: var(--primary-color);
+    color: white;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
     font-weight: 600;
-    color: #2563eb;
-    margin: 8px 0;
-    font-size: 1.1em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.game, .matchup {
-    color: #4b5563;
-    margin: 5px 0;
+.prop-content {
+    padding: 1rem 0;
 }
 
-.game strong, .matchup strong {
-    color: #2563eb;
+.prop-player {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.prop-team {
+    color: var(--primary-color);
     font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
 }
 
-.line, .odds {
+.prop-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.prop-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: var(--background);
+    border-radius: var(--border-radius);
+}
+
+.prop-stat-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.prop-stat-value {
     font-family: monospace;
-    color: #6b7280;
-    margin: 5px 0;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
-.player {
-    font-size: 1.2em;
+.prop-line {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-align: center;
+    padding: 0.75rem;
+    margin: 1rem 0;
+    background: var(--background);
+    border-radius: var(--border-radius);
+}
+
+.prop-odds {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.prop-odds-item {
+    text-align: center;
+    flex: 1;
+}
+
+.prop-odds-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.prop-odds-value {
+    font-family: monospace;
     font-weight: 600;
-    color: #1f2937;
-    margin: 8px 0;
+    color: var(--text-primary);
 }
 
 .pick-card:hover {
@@ -675,6 +751,47 @@ select {
 .mb-4 { margin-bottom: 1rem; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-4 { margin-top: 1rem; }
+
+/* Prop Card Utilities */
+.prop-tag {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.prop-tag-batting {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.prop-tag-pitching {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.prop-tag-fielding {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.prop-trend {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.prop-trend-up {
+    color: var(--success-color);
+}
+
+.prop-trend-down {
+    color: var(--danger-color);
+}
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
