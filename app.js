@@ -93,16 +93,16 @@ function updateTopPicks(recommendations) {
 function updateTeamBets(teamBets) {
     const teamBetsContainer = document.getElementById('teamBets');
     teamBetsContainer.innerHTML = teamBets.map(bet => `
-        <div class="bet-card">
+        <div class="bet-card" data-bet-type="${getBetCategory(bet.betType)}">
             <div class="bet-header score-${getConfidenceClass(bet.score)}">
-                <span class="score">${bet.score}/10</span>
+                <span class="score">${bet.score.toFixed(1)}/10</span>
                 <span class="confidence">${bet.confidenceLabel || getConfidenceLabel(bet.score)}</span>
             </div>
             <div class="bet-content">
-                <h3>${bet.betType}</h3>
-                <p class="matchup">${bet.matchup}</p>
+                <h3>${formatBetType(bet.betType)}</h3>
+                <p class="matchup">${bet.matchup || ''}</p>
                 <p class="odds">Odds: ${formatOdds(bet.odds)}</p>
-                <p class="reason">${bet.reason}</p>
+                <p class="reason">${bet.reason || ''}</p>
                 <div class="bet-actions">
                     <button class="track-bet-btn" data-bet='${JSON.stringify(bet)}'>Track Bet</button>
                 </div>
@@ -119,16 +119,17 @@ function updateTeamBets(teamBets) {
 function updatePlayerProps(props) {
     const propsContainer = document.getElementById('playerProps');
     propsContainer.innerHTML = props.map(prop => `
-        <div class="prop-card">
+        <div class="prop-card" data-prop-type="${getPlayerPropCategory(prop.betType)}">
             <div class="prop-header score-${getConfidenceClass(prop.score)}">
-                <span class="score">${prop.score}/10</span>
+                <span class="score">${prop.score.toFixed(1)}/10</span>
                 <span class="confidence">${prop.confidenceLabel || getConfidenceLabel(prop.score)}</span>
             </div>
             <div class="prop-content">
                 <h3>${prop.player}</h3>
-                <p class="prop-type">${prop.propLine || prop.betType}</p>
-                <p class="matchup">${prop.matchup}</p>
-                <p class="reason">${prop.reason}</p>
+                <p class="prop-type">${formatBetType(prop.betType)}</p>
+                <p class="matchup">${prop.matchup || ''}</p>
+                <p class="odds">Odds: ${formatOdds(prop.odds)}</p>
+                <p class="reason">${prop.reason || ''}</p>
                 <div class="prop-actions">
                     <button class="track-bet-btn" data-bet='${JSON.stringify(prop)}'>Track Bet</button>
                 </div>
@@ -148,26 +149,22 @@ function updateParlays(parlays) {
         <div class="parlay-card">
             <div class="parlay-header score-${getConfidenceClass(parlay.avgScore)}">
                 <span class="score">${parlay.avgScore.toFixed(1)}/10</span>
-                <span class="confidence">${parlay.riskLevel ? parlay.riskLevel.toUpperCase() : getConfidenceLabel(parlay.avgScore)}</span>
+                <span class="risk-level">${parlay.riskLevel ? parlay.riskLevel.toUpperCase() : getConfidenceLabel(parlay.avgScore)}</span>
             </div>
             <div class="parlay-content">
-                <div class="bet-type">${parlay.legs.length}-Leg Parlay</div>
+                <h3>${parlay.legs.length}-leg parlay</h3>
                 <div class="parlay-legs">
                     ${parlay.legs.map(leg => `
                         <div class="parlay-leg">
-                            <h4>${leg.matchup || leg.player || ''}</h4>
-                            <p>${formatBetType(leg.betType)}</p>
+                            <h4>${leg.matchup || leg.player}</h4>
+                            <p class="bet-type">${formatBetType(leg.betType)}</p>
                             ${leg.odds ? `<p class="odds">Odds: ${formatOdds(leg.odds)}</p>` : ''}
                         </div>
                     `).join('')}
                 </div>
-                ${parlay.reasoning ? `<p class="reason">${parlay.reasoning}</p>` : ''}
-                <div class="bet-actions">
+                <p class="reason">${parlay.reasoning || ''}</p>
+                <div class="parlay-actions">
                     <button class="track-bet-btn" data-bet='${JSON.stringify(parlay)}'>Track Parlay</button>
-                </div>
-                <div class="bet-metadata">
-                    <span>Combined odds: ${formatOdds(parlay.totalOdds) || 'N/A'}</span>
-                    ${parlay.potential_payout ? `<span>Potential payout: ${parlay.potential_payout}</span>` : ''}
                 </div>
             </div>
         </div>
@@ -204,6 +201,23 @@ function formatOdds(odds) {
     return odds > 0 ? `+${odds}` : odds;
 }
 
+function getBetCategory(betType) {
+    if (!betType) return 'other';
+    if (betType.includes('ml')) return 'ml';
+    if (betType.includes('total')) return 'total';
+    if (betType.includes('runline')) return 'runline';
+    if (betType.includes('f5') || betType.includes('first_5')) return 'f5';
+    return 'other';
+}
+
+function getPlayerPropCategory(betType) {
+    if (!betType) return 'other';
+    if (betType.includes('hits') || betType.includes('rbi') || betType.includes('hr')) return 'hitting';
+    if (betType.includes('strikeout') || betType.includes('earned_run')) return 'pitching';
+    if (betType.includes('streak')) return 'streaks';
+    return 'situational';
+}
+
 function formatBetType(betType) {
     if (!betType) return 'N/A';
     
@@ -224,6 +238,15 @@ function formatBetType(betType) {
         if (betType.includes('under')) return 'Under Team Total';
         return 'Team Total';
     }
+    
+    // Handle moneyline
+    if (betType.includes('ml')) return 'Moneyline';
+    
+    // Handle runline
+    if (betType.includes('runline')) return 'Run Line';
+    
+    // Handle first 5
+    if (betType.includes('f5') || betType.includes('first_5')) return 'First 5 Innings';
     
     // Convert under_total to "Under Total"
     const formatted = betType
@@ -442,6 +465,56 @@ function updateTrackedBetsUI(bets) {
 
 // Load tracked bets when switching to tracked tab
 document.querySelector('[data-tab="tracked"]').addEventListener('click', loadTrackedBets);
+
+// Filter buttons functionality
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const container = btn.closest('.section').querySelector('.bets-container, .props-container');
+        const filter = btn.dataset.filter;
+        
+        // Update active button
+        btn.closest('.filters, .props-categories').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Filter items
+        if (filter === 'all') {
+            container.querySelectorAll('.bet-card, .prop-card').forEach(card => card.style.display = '');
+        } else {
+            container.querySelectorAll('.bet-card, .prop-card').forEach(card => {
+                if (card.dataset.betType === filter || card.dataset.propType === filter) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+    });
+});
+
+// Category buttons functionality
+document.querySelectorAll('.category-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const container = document.getElementById('playerProps');
+        const category = btn.dataset.category;
+        
+        // Update active button
+        btn.closest('.category-nav').querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Filter items
+        if (category === 'all') {
+            container.querySelectorAll('.prop-card').forEach(card => card.style.display = '');
+        } else {
+            container.querySelectorAll('.prop-card').forEach(card => {
+                if (card.dataset.propType === category) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+    });
+});
 
 // Export functionality
 document.getElementById('exportFab').addEventListener('click', () => {
