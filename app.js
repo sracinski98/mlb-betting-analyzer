@@ -54,15 +54,42 @@ function removeBet(trackingId) {
 }
 
 function renderPropCards(props, category) {
-    return props.map(prop => `
-        <div class="prop-card ${category}">
-            <h4>${prop.player || prop.betType}</h4>
-            ${prop.propLine ? `<p>Line: ${prop.propLine}</p>` : ''}
-            <p>Confidence: ${prop.confidence}</p>
-            <p class="reason">${prop.reason}</p>
-            <button class="track-bet-btn" data-bet='${JSON.stringify(prop)}'>Track Bet</button>
+    // Deduplicate props based on betType and reason
+    const uniqueProps = props.reduce((acc, prop) => {
+        const key = `${prop.betType}-${prop.reason}`;
+        if (!acc[key] || prop.score > acc[key].score) {
+            acc[key] = prop;
+        }
+        return acc;
+    }, {});
+
+    return Object.values(uniqueProps).map(prop => `
+        <div class="prop-card ${category} ${prop.confidence.toLowerCase()}">
+            <div class="prop-header">
+                <div class="confidence-score">${prop.score?.toFixed(1) || '0.0'}/10</div>
+                <div class="confidence-label">${prop.confidenceLabel || prop.confidence.toUpperCase()}</div>
+            </div>
+            <div class="prop-content">
+                <h4>${prop.player || formatBetType(prop.betType)}</h4>
+                ${prop.propLine ? `<p class="prop-line">${prop.propLine}</p>` : ''}
+                ${prop.odds ? `<p class="odds">Odds: ${prop.odds}</p>` : ''}
+                <p class="reason">${prop.reason || 'No analysis available'}</p>
+                ${prop.team ? `<p class="team">Team: ${prop.team}</p>` : ''}
+                ${prop.matchup ? `<p class="matchup">${prop.matchup}</p>` : ''}
+            </div>
+            <button class="track-bet-btn" data-bet='${JSON.stringify(prop)}'>
+                <i class="fas fa-plus"></i> Track Bet
+            </button>
         </div>
     `).join('');
+}
+
+function formatBetType(betType) {
+    if (!betType) return 'Unknown Bet Type';
+    return betType
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
 function filterPropsByCategory(category) {
@@ -88,27 +115,68 @@ function updateParlays(parlays) {
     const parlayContainer = document.getElementById('parlayRecommendations');
     if (!parlayContainer) return;
 
+    // Group parlays by category
+    const groupedParlays = parlays.reduce((acc, parlay) => {
+        const category = parlay.parlayCategory || 'other';
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(parlay);
+        return acc;
+    }, {});
+
     parlayContainer.innerHTML = `
-        <div class="parlay-grid">
-            ${parlays.map(parlay => `
-                <div class="parlay-card ${parlay.riskLevel}">
-                    <h4>${parlay.type}</h4>
-                    <p>Category: ${parlay.parlayCategory}</p>
-                    <p>Risk Level: ${parlay.riskLevel}</p>
-                    <p>Expected Odds: ${parlay.expectedOdds}</p>
-                    <p class="reason">${parlay.reasoning}</p>
-                    <div class="parlay-legs">
-                        ${parlay.legs.map(leg => `
-                            <div class="parlay-leg">
-                                <p>${leg.player || leg.betType}: ${leg.propLine || leg.reason}</p>
+        <div class="parlay-sections">
+            ${Object.entries(groupedParlays).map(([category, categoryParlays]) => `
+                <div class="parlay-section">
+                    <h3>${formatCategory(category)} (${categoryParlays.length})</h3>
+                    <div class="parlay-grid">
+                        ${categoryParlays.map(parlay => `
+                            <div class="parlay-card ${parlay.riskLevel}">
+                                <div class="parlay-header">
+                                    <div class="confidence-score">${parlay.avgScore?.toFixed(1) || '0.0'}/10</div>
+                                    <div class="parlay-type">${parlay.type}</div>
+                                    <div class="risk-level ${parlay.riskLevel}">${parlay.riskLevel.toUpperCase()}</div>
+                                </div>
+                                <div class="parlay-content">
+                                    <p class="odds">Expected Odds: ${parlay.expectedOdds || 'N/A'}</p>
+                                    <p class="reason">${parlay.reasoning || 'No analysis available'}</p>
+                                    <div class="parlay-legs">
+                                        ${parlay.legs.map(leg => `
+                                            <div class="parlay-leg">
+                                                <div class="leg-header">
+                                                    <span class="leg-type">${formatBetType(leg.betType)}</span>
+                                                    ${leg.confidence ? `<span class="leg-confidence">${leg.confidence.toUpperCase()}</span>` : ''}
+                                                </div>
+                                                ${leg.player ? `<p class="leg-player">${leg.player}</p>` : ''}
+                                                ${leg.propLine ? `<p class="leg-line">${leg.propLine}</p>` : ''}
+                                                <p class="leg-reason">${leg.reason || 'No analysis available'}</p>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <button class="track-parlay-btn" data-parlay='${JSON.stringify(parlay)}'>
+                                    <i class="fas fa-plus"></i> Track Parlay
+                                </button>
                             </div>
                         `).join('')}
                     </div>
-                    <button class="track-parlay-btn" data-parlay='${JSON.stringify(parlay)}'>Track Parlay</button>
                 </div>
             `).join('')}
         </div>
     `;
+
+    // Add event listeners for track buttons
+    parlayContainer.querySelectorAll('.track-parlay-btn').forEach(btn => {
+        btn.addEventListener('click', () => trackBet(JSON.parse(btn.dataset.parlay)));
+    });
+}
+
+function formatCategory(category) {
+    if (!category) return 'Other';
+    return category
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
 
     // Add event listeners for track buttons
     parlayContainer.querySelectorAll('.track-parlay-btn').forEach(btn => {
@@ -184,22 +252,62 @@ function updateUI(result) {
 
 async function runAnalysis() {
     console.log("Starting analysis...");
-    const engine = new window.MLBAnalyticsEngine();
+    
+    if (!window.MLBAnalyticsEngine) {
+        console.error("MLBAnalyticsEngine not found!");
+        alert("Error: Analytics engine not loaded properly. Please refresh the page and try again.");
+        return;
+    }
     
     try {
+        const engine = new window.MLBAnalyticsEngine();
+        
+        // Show loading state
+        const analyzeButton = document.getElementById('analyzeButton');
+        if (analyzeButton) {
+            analyzeButton.disabled = true;
+            analyzeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        }
+        
         const result = await engine.runComprehensiveAnalysis();
         console.log("Analysis complete:", result);
         updateUI(result);
+        
+        // Reset button state
+        if (analyzeButton) {
+            analyzeButton.disabled = false;
+            analyzeButton.innerHTML = '<i class="fas fa-play"></i> Run Analysis';
+        }
     } catch (error) {
-        console.log("Analysis failed:", error);
+        console.error("Analysis failed:", error);
+        alert("An error occurred while running the analysis. Please try again.");
+        
+        // Reset button on error
+        const analyzeButton = document.getElementById('analyzeButton');
+        if (analyzeButton) {
+            analyzeButton.disabled = false;
+            analyzeButton.innerHTML = '<i class="fas fa-play"></i> Run Analysis';
+        }
     }
 }
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM Content Loaded - Setting up event listeners");
     const analyzeButton = document.getElementById('analyzeButton');
+    
     if (analyzeButton) {
+        console.log("Analyze button found - adding click listener");
         analyzeButton.addEventListener('click', runAnalysis);
+    } else {
+        console.error("Analyze button not found in the DOM");
+    }
+    
+    // Verify MLBAnalyticsEngine is available
+    if (window.MLBAnalyticsEngine) {
+        console.log("MLBAnalyticsEngine is available");
+    } else {
+        console.error("MLBAnalyticsEngine not found - analysis functionality may not work");
     }
 });
 
