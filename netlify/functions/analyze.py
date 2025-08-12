@@ -1,7 +1,12 @@
 from http.server import BaseHTTPRequestHandler
+import sys
+import os
+
+# Add the project root to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 from mlb_analyzer.data.mlb_api import MLBApi
 import json
-import os
 
 mlb_api = MLBApi(odds_api_key=os.environ.get('ODDS_API_KEY', 'fe3e1db58259d6d7d3599e2ae3d22ecc'))
 
@@ -11,9 +16,12 @@ class handler(BaseHTTPRequestHandler):
             # Get today's games and analysis
             recommendations = analyze_games(mlb_api)
             
-            # Send response
+            # Send response with CORS headers
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'GET')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
             self.end_headers()
             self.wfile.write(json.dumps(recommendations).encode())
             return
@@ -21,6 +29,9 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'GET')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
             return
