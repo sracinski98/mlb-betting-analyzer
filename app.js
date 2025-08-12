@@ -220,7 +220,10 @@ function updateParlays(parlays) {
                                                     value: leg.value,
                                                     total: leg.total,
                                                     betDesc: leg.betDesc,
-                                                    description: leg.description
+                                                    description: leg.description,
+                                                    team: leg.team,
+                                                    homeTeam: leg.homeTeam,
+                                                    awayTeam: leg.awayTeam
                                                 });
                                                 
                                                 let total;
@@ -238,19 +241,29 @@ function updateParlays(parlays) {
                                                     if (match) total = match[1];
                                                 }
                                                 
+                                                // Determine team info
+                                                const teamDisplay = leg.team || 
+                                                    (leg.homeTeam && leg.awayTeam ? `${leg.awayTeam} @ ${leg.homeTeam}` : '');
+                                                
                                                 const legData = {
                                                     total: total || leg.line || leg.value || leg.total,
                                                     isUnder: leg.betType?.toLowerCase().includes('under'),
                                                     type: leg.propType || leg.type || '',
-                                                    player: leg.player || ''
+                                                    player: leg.player || '',
+                                                    team: teamDisplay
                                                 };
                                                 return `
                                                     <div class="bet-line">
-                                                        <strong>${legData.isUnder ? 'Under' : 'Over'}</strong>
-                                                        <span class="total-value">${legData.total}</span> 
-                                                        ${legData.type} 
-                                                        ${legData.player ? `(${legData.player})` : ''}
-                                                        <span class="confidence-indicator ${leg.confidence?.toLowerCase()}">${leg.confidence?.toUpperCase()}</span>
+                                                        <div class="bet-header">
+                                                            <strong>${legData.isUnder ? 'Under' : 'Over'}</strong>
+                                                            <span class="total-value">${legData.total}</span> 
+                                                            ${legData.type} 
+                                                        </div>
+                                                        <div class="bet-details">
+                                                            ${legData.player ? `<div class="player-info">${legData.player}${legData.team ? ` (${legData.team})` : ''}</div>` : ''}
+                                                            ${!legData.player && legData.team ? `<div class="team-info">${legData.team}</div>` : ''}
+                                                            <span class="confidence-indicator ${leg.confidence?.toLowerCase()}">${leg.confidence?.toUpperCase()}</span>
+                                                        </div>
                                                     </div>
                                                 `;
                                             }).join('')}
@@ -264,7 +277,10 @@ function updateParlays(parlays) {
                                                     <span class="leg-type">${formatBetType(leg.betType)}</span>
                                                     ${leg.confidence ? `<span class="confidence-pill ${leg.confidence.toLowerCase()}">${leg.confidence.toUpperCase()}</span>` : ''}
                                                 </div>
-                                                ${leg.player ? `<p class="player-name">${leg.player}</p>` : ''}
+                                                <div class="leg-details">
+                                                    ${leg.player ? `<p class="player-name">${leg.player}</p>` : ''}
+                                                    ${leg.team ? `<p class="team-name">${leg.team}</p>` : ''}
+                                                    ${leg.homeTeam && leg.awayTeam ? `<p class="matchup">${leg.awayTeam} @ ${leg.homeTeam}</p>` : ''}
                                                 ${(() => {
                                                     // Try to extract number from various fields
                                                     let total;

@@ -752,6 +752,53 @@ select {
 .mt-2 { margin-top: 0.5rem; }
 .mt-4 { margin-top: 1rem; }
 
+/* Parlay Specific Styles */
+.bet-line {
+    padding: 12px;
+    margin-bottom: 8px;
+    background: var(--background);
+    border-radius: var(--border-radius);
+}
+
+.bet-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.bet-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.player-info, .team-info {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.matchup {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.leg-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.team-name {
+    color: var(--primary-color);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
 /* Prop Card Utilities */
 .prop-tag {
     display: inline-block;
