@@ -100,7 +100,8 @@ function updateTeamBets(teamBets) {
             </div>
             <div class="bet-content">
                 <h3>${formatBetType(bet.betType)}</h3>
-                <p class="matchup">${bet.matchup || ''}</p>
+                ${bet.team ? `<p class="team">${bet.team}</p>` : ''}
+                <p class="matchup">${formatMatchup(bet.matchup, bet.team) || ''}</p>
                 <p class="odds">Odds: ${formatOdds(bet.odds)}</p>
                 <p class="reason">${bet.reason || ''}</p>
                 <div class="bet-actions">
@@ -126,8 +127,9 @@ function updatePlayerProps(props) {
             </div>
             <div class="prop-content">
                 <h3>${prop.player}</h3>
+                <p class="team">${prop.team || getTeamFromMatchup(prop.matchup, prop.player) || ''}</p>
                 <p class="prop-type">${formatBetType(prop.betType)}</p>
-                <p class="matchup">${prop.matchup || ''}</p>
+                <p class="game">${formatMatchup(prop.matchup, prop.team) || ''}</p>
                 <p class="odds">Odds: ${formatOdds(prop.odds)}</p>
                 <p class="reason">${prop.reason || ''}</p>
                 <div class="prop-actions">
@@ -371,6 +373,24 @@ async function trackBet(bet) {
 }
 
 // Notification system
+function getTeamFromMatchup(matchup, player) {
+    if (!matchup) return '';
+    const teams = matchup.split('@').map(team => team.trim());
+    // Basic heuristic - return the first team as default
+    // This could be enhanced with a player-team database lookup
+    return teams[0];
+}
+
+function formatMatchup(matchup, playerTeam) {
+    if (!matchup) return '';
+    const formattedMatchup = matchup.replace('@', ' @ ');
+    // Highlight the player's team if known
+    if (playerTeam) {
+        return formattedMatchup.replace(playerTeam, `<strong>${playerTeam}</strong>`);
+    }
+    return formattedMatchup;
+}
+
 function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
