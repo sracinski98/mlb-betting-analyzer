@@ -371,7 +371,6 @@ function renderPropCards(props, category) {
         </div>
     `}).join('');
 }
-}
 
 function renderPropStats(prop, category) {
     switch(category) {
