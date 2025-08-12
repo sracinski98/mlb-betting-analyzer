@@ -161,12 +161,24 @@ function filterPropsByCategory(category) {
 }
 
 function updateParlays(parlays) {
+    console.log('Updating parlays with data:', parlays);
+    
     const parlayContainer = document.getElementById('parlayRecommendations');
-    if (!parlayContainer) return;
+    if (!parlayContainer) {
+        console.error('Parlay container not found in the DOM');
+        return;
+    }
+
+    if (!Array.isArray(parlays)) {
+        console.error('Parlays is not an array:', parlays);
+        parlayContainer.innerHTML = '<div class="no-data">Invalid parlay data</div>';
+        return;
+    }
 
     // Group parlays by category
     const groupedParlays = parlays.reduce((acc, parlay) => {
-        const category = parlay.parlayCategory || 'other';
+        console.log('Processing parlay:', parlay);
+        const category = parlay.parlayCategory || parlay.type || 'other';
         if (!acc[category]) acc[category] = [];
         acc[category].push(parlay);
         return acc;
@@ -650,6 +662,8 @@ function updatePlayerProps(props) {
             position: prop.position
         });
 
+        let categorized = false;
+
         // Check for pitching props first
         if (prop.betType?.toLowerCase().includes('pitcher') ||
             prop.betType?.toLowerCase().includes('strikeout') ||
@@ -662,32 +676,36 @@ function updatePlayerProps(props) {
             prop.player?.toLowerCase().includes('pitcher')) {
             console.log(`Categorized as pitching: ${prop.player || prop.betType}`);
             categorizedProps.pitching.push(prop);
-            return;
+            categorized = true;
         }
 
         // Check for hitting props
-        if (prop.betType?.toLowerCase().includes('hits') ||
+        if (!categorized && (
+            prop.betType?.toLowerCase().includes('hits') ||
             prop.betType?.toLowerCase().includes('hr') ||
             prop.betType?.toLowerCase().includes('rbi') ||
             prop.betType?.toLowerCase().includes('bases') ||
             prop.betType?.toLowerCase().includes('runs') ||
             prop.category?.toLowerCase() === 'hitting' ||
-            (prop.betType?.toLowerCase().includes('player') && !prop.betType?.toLowerCase().includes('pitcher'))) {
+            (prop.betType?.toLowerCase().includes('player') && !prop.betType?.toLowerCase().includes('pitcher'))
+        )) {
             console.log(`Categorized as hitting: ${prop.player || prop.betType}`);
             categorizedProps.hitting.push(prop);
-            return;
+            categorized = true;
         }
 
         // Check for streaks
-        if (prop.propFactor === 'hot_streak' ||
+        if (!categorized && (
+            prop.propFactor === 'hot_streak' ||
             prop.hotStreak ||
             prop.streak ||
             prop.reason?.toLowerCase().includes('streak') ||
             prop.reason?.toLowerCase().includes('consecutive') ||
-            (prop.player && window.MLBAnalyticsEngine?.prototype?.playerDatabase?.[prop.player]?.hotStreak)) {
+            (prop.player && window.MLBAnalyticsEngine?.prototype?.playerDatabase?.[prop.player]?.hotStreak)
+        )) {
             console.log(`Categorized as streak: ${prop.player || prop.betType}`);
             categorizedProps.streaks.push(prop);
-            return;
+            categorized = true;
         }
 
         // Check for situational props
