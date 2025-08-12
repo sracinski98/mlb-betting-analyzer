@@ -14,6 +14,7 @@
 [build.environment]
   NODE_VERSION = "18"
   ODDS_API_KEY = "fe3e1db58259d6d7d3599e2ae3d22ecc"
+  MONGODB_URI = "mongodb+srv://sracinski:<doWwSpOpiH9fQRVk>@bets.ziju8pj.mongodb.net/?retryWrites=true&w=majority&appName=Bets"
 
 [[headers]]
   for = "/*"
@@ -22,10 +23,10 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self' *.netlify.app; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' /.netlify/functions/* https://statsapi.mlb.com https://api.the-odds-api.com https://api.weatherapi.com; img-src 'self' data:;"
+    Content-Security-Policy = "default-src 'self' *.netlify.app; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' /.netlify/functions/* https://statsapi.mlb.com https://api.the-odds-api.com https://api.weatherapi.com *.mongodb.net; img-src 'self' data:;"
 
 [[headers]]
-  for = "*.js"
+
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
@@ -40,9 +41,11 @@
   status = 200
 
 [dev]
-  command = "python -m http.server 8000"
-  port = 8000
+  command = "npm start"
+  port = 8888
+  targetPort = 3000
   publish = "."
+  framework = "#static"
 
 [[plugins]]
   package = "@netlify/plugin-sitemap"

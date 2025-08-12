@@ -4,6 +4,6 @@
   "description": "Bet tracking function for MLB betting analyzer",
   "main": "track-bets.js",
   "dependencies": {
-    "faunadb": "^4.7.0"
+    "mongodb": "^6.0.0"
   }
 }

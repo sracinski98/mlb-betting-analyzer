@@ -4,8 +4,9 @@
   "description": "MLB betting analyzer application",
   "type": "module",
   "scripts": {
-    "start": "netlify dev",
-    "build": "echo 'No build step required'"
+    "start": "netlify dev --port 3000",
+    "build": "echo 'No build step required'",
+    "dev": "netlify dev"
   },
   "dependencies": {
     "node-fetch": "^3.3.1",

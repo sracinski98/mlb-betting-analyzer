@@ -1,0 +1,9 @@
+{
+  "name": "test-db",
+  "version": "1.0.0",
+  "description": "MongoDB connection test function",
+  "main": "test-db.js",
+  "dependencies": {
+    "mongodb": "^6.0.0"
+  }
+}

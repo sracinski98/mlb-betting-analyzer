@@ -1,88 +1,119 @@
-const faunadb = require('faunadb');
-const q = faunadb.query;
+const { MongoClient } = require('mongodb');
 
-const client = new faunadb.Client({
-  secret: process.env.FAUNA_SECRET_KEY
-});
+// MongoDB connection
+let cachedDb = null;
+
+async function connectToDatabase() {
+    if (cachedDb) {
+        return cachedDb;
+    }
+
+    const client = await MongoClient.connect(process.env.MONGODB_URI);
+    const db = client.db('mlb-betting');
+    
+    // Create indexes if they don't exist
+    await db.collection('bets').createIndex({ userId: 1 });
+    await db.collection('bets').createIndex({ status: 1 });
+    await db.collection('bets').createIndex({ createdAt: 1 });
+    
+    cachedDb = db;
+    return db;
+}
 
 exports.handler = async function(event, context) {
-  try {
-    if (event.httpMethod !== 'POST' && event.httpMethod !== 'GET') {
-      return {
-        statusCode: 405,
-        body: JSON.stringify({ error: 'Method not allowed' })
-      };
+    context.callbackWaitsForEmptyEventLoop = false;
+
+    try {
+        const db = await connectToDatabase();
+        const collection = db.collection('bets');
+
+        // Set CORS headers
+        const headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Content-Type': 'application/json'
+        };
+
+        // Handle OPTIONS request
+        if (event.httpMethod === 'OPTIONS') {
+            return {
+                statusCode: 204,
+                headers
+            };
+        }
+
+        if (event.httpMethod === 'POST') {
+            const { bets, userId } = JSON.parse(event.body);
+            
+            const doc = {
+                bets,
+                userId,
+                createdAt: new Date(),
+                status: 'pending',
+                lastUpdated: new Date()
+            };
+
+            const result = await collection.insertOne(doc);
+
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    message: 'Bets tracked successfully',
+                    betId: result.insertedId
+                })
+            };
+        }
+
+        if (event.httpMethod === 'GET') {
+            const { userId, status, limit = 20, skip = 0 } = event.queryStringParameters || {};
+            
+            const query = {};
+            if (userId) query.userId = userId;
+            if (status) query.status = status;
+
+            const bets = await collection
+                .find(query)
+                .sort({ createdAt: -1 })
+                .skip(Number(skip))
+                .limit(Number(limit))
+                .toArray();
+
+            const total = await collection.countDocuments(query);
+
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    bets,
+                    pagination: {
+                        total,
+                        limit: Number(limit),
+                        skip: Number(skip),
+                        hasMore: total > (Number(skip) + Number(limit))
+                    }
+                })
+            };
+        }
+
+        return {
+            statusCode: 405,
+            headers,
+            body: JSON.stringify({ error: 'Method not allowed' })
+        };
+
+    } catch (error) {
+        console.error('Database error:', error);
+        return {
+            statusCode: 500,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                error: 'Database operation failed',
+                details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            })
+        };
     }
-
-    if (event.httpMethod === 'POST') {
-      const { bets, userId } = JSON.parse(event.body);
-      
-      // Store the bets in FaunaDB
-      const result = await client.query(
-        q.Create(
-          q.Collection('bets'),
-          {
-            data: {
-              bets,
-              userId,
-              placedAt: new Date().toISOString(),
-              status: 'pending' // Will be updated once game completes
-            }
-          }
-        )
-      );
-
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message: 'Bets tracked successfully',
-          betId: result.ref.id
-        })
-      };
-    }
-
-    if (event.httpMethod === 'GET') {
-      const { userId, status } = event.queryStringParameters || {};
-      
-      let query = q.Match(q.Index('bets_by_user'), userId);
-      if (status) {
-        query = q.Filter(
-          query,
-          q.Lambda(
-            'bet',
-            q.Equals(q.Select(['data', 'status'], q.Get(q.Var('bet'))), status)
-          )
-        );
-      }
-
-      const result = await client.query(
-        q.Map(
-          q.Paginate(query),
-          q.Lambda('ref', q.Get(q.Var('ref')))
-        )
-      );
-
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          bets: result.data.map(doc => ({
-            id: doc.ref.id,
-            ...doc.data
-          }))
-        })
-      };
-    }
-  } catch (error) {
-    console.error('Error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to process request' })
-    };
-  }
 };
