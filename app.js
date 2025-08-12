@@ -225,6 +225,23 @@ function formatCategory(category) {
         .join(' ');
 }
 
+function filterParlaysByType(type) {
+    console.log('Filtering parlays by type:', type);
+    
+    const parlaysList = document.getElementById('parlaysList');
+    if (!parlaysList) return;
+    
+    const parlayCards = parlaysList.querySelectorAll('.parlay-card');
+    parlayCards.forEach(card => {
+        if (type === 'all') {
+            card.style.display = 'block';
+        } else {
+            const parlayType = card.dataset.type;
+            card.style.display = parlayType === type ? 'block' : 'none';
+        }
+    });
+}
+
 function updateConfidenceChart(data) {
     const ctx = document.getElementById('confidenceChart').getContext('2d');
     
@@ -470,6 +487,30 @@ async function runAnalysis() {
     }
 }
 
+function switchTab(tabId) {
+    console.log('Switching to tab:', tabId);
+    
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Update tab panes
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        if (pane.id === tabId) {
+            pane.classList.add('active');
+            pane.style.display = 'block';
+        } else {
+            pane.classList.remove('active');
+            pane.style.display = 'none';
+        }
+    });
+}
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Content Loaded - Setting up event listeners");
@@ -482,6 +523,16 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.error("Analyze button not found in the DOM");
     }
+    
+    // Set up tab navigation
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            const tabId = event.target.closest('.tab-btn').dataset.tab;
+            console.log('Tab button clicked:', tabId);
+            switchTab(tabId);
+        });
+    });
     
     // Set up category filter buttons
     const categoryButtons = document.querySelectorAll('.category-btn');
@@ -501,7 +552,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Set initial active category if none is set
+    // Set up parlay type filter buttons
+    const parlayButtons = document.querySelectorAll('.parlay-btn');
+    parlayButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            const type = event.target.dataset.type;
+            console.log('Parlay type button clicked:', type);
+            
+            // Remove active class from all buttons
+            parlayButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+            
+            // Filter parlays by type
+            filterParlaysByType(type);
+        });
+    });
+    
+    // Set initial active states
+    const initialActiveButton = document.querySelector('.tab-btn.active');
+    if (initialActiveButton) {
+        switchTab(initialActiveButton.dataset.tab);
+    } else if (tabButtons.length > 0) {
+        switchTab(tabButtons[0].dataset.tab);
+    }
+    
     const activeButton = document.querySelector('.category-btn.active');
     if (!activeButton && categoryButtons.length > 0) {
         categoryButtons[0].classList.add('active');
