@@ -210,6 +210,16 @@ function updateParlays(parlays) {
                                     <div class="parlay-summary">
                                         <p class="odds-line">Expected Odds: ${parlay.expectedOdds || 'N/A'}</p>
                                         <p class="parlay-legs-count">${parlay.legs.length}-leg parlay</p>
+                                        <div class="bet-summary">
+                                            ${parlay.legs.map(leg => `
+                                                <div class="bet-line">
+                                                    <strong>${leg.betType.toLowerCase().includes('under') ? 'Under' : 'Over'}</strong>
+                                                    ${leg.total} ${leg.propType || ''} 
+                                                    ${leg.player ? `(${leg.player})` : ''}
+                                                    <span class="confidence-indicator ${leg.confidence?.toLowerCase()}">${leg.confidence?.toUpperCase()}</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
                                         <p class="analysis">${parlay.reasoning || 'No analysis available'}</p>
                                     </div>
                                     <div class="parlay-legs">
@@ -220,7 +230,13 @@ function updateParlays(parlays) {
                                                     ${leg.confidence ? `<span class="confidence-pill ${leg.confidence.toLowerCase()}">${leg.confidence.toUpperCase()}</span>` : ''}
                                                 </div>
                                                 ${leg.player ? `<p class="player-name">${leg.player}</p>` : ''}
-                                                ${leg.propLine ? `<p class="prop-line">${leg.propLine}</p>` : ''}
+                                                ${leg.total ? 
+                                                    `<p class="prop-line highlight">
+                                                        ${leg.betType.toLowerCase().includes('under') ? 'Under' : 'Over'} 
+                                                        ${leg.total} 
+                                                        ${leg.propType || ''}
+                                                    </p>` : 
+                                                    (leg.propLine ? `<p class="prop-line">${leg.propLine}</p>` : '')}
                                                 <p class="leg-analysis">${leg.reason || 'No analysis available'}</p>
                                             </div>
                                         `).join('')}
