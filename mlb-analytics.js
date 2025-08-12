@@ -6,7 +6,7 @@
 class MLBAnalyticsEngine {
     constructor() {
         this.apiKeys = {
-            odds: 'b1cc0151482fcdf0d3d970d1355b1323',
+            odds: 'fe3e1db58259d6d7d3599e2ae3d22ecc',
             weather: 'ced43351fe454b3d9a815907251008'
         };
         
@@ -266,7 +266,7 @@ class MLBAnalyticsEngine {
     analyzeTeamTrends(games) {
         const recommendations = [];
         
-        // Simplified team strength analysis
+        // Enhanced team strength analysis with explicit team assignments
         const strongOffenses = ['Los Angeles Dodgers', 'Atlanta Braves', 'Houston Astros', 'New York Yankees'];
         const weakOffenses = ['Miami Marlins', 'Oakland Athletics', 'Detroit Tigers', 'Chicago White Sox'];
         const strongPitching = ['Cleveland Guardians', 'Tampa Bay Rays', 'New York Mets', 'San Francisco Giants'];
@@ -279,9 +279,12 @@ class MLBAnalyticsEngine {
                 recommendations.push({
                     gameId,
                     betType: 'away_ml',
+                    team: awayTeam,
+                    matchup: `${awayTeam} @ ${homeTeam}`,
                     reason: `${awayTeam} strong offense vs ${homeTeam} average pitching`,
                     confidence: 'medium',
-                    trendFactor: 'offense_vs_pitching'
+                    trendFactor: 'offense_vs_pitching',
+                    odds: odds?.find(o => o.away_team === awayTeam)?.bookmakers?.[0]?.markets?.[0]?.outcomes?.[0]?.price || null
                 });
             }
             
@@ -289,9 +292,12 @@ class MLBAnalyticsEngine {
                 recommendations.push({
                     gameId,
                     betType: 'home_ml',
+                    team: homeTeam,
+                    matchup: `${awayTeam} @ ${homeTeam}`,
                     reason: `${homeTeam} strong offense vs ${awayTeam} average pitching`,
                     confidence: 'medium',
-                    trendFactor: 'offense_vs_pitching'
+                    trendFactor: 'offense_vs_pitching',
+                    odds: odds?.find(o => o.home_team === homeTeam)?.bookmakers?.[0]?.markets?.[0]?.outcomes?.[1]?.price || null
                 });
             }
             
@@ -300,9 +306,11 @@ class MLBAnalyticsEngine {
                 recommendations.push({
                     gameId,
                     betType: 'under_total',
+                    matchup: `${awayTeam} @ ${homeTeam}`,
                     reason: `Both teams have weak offenses - low-scoring game expected`,
                     confidence: 'high',
-                    trendFactor: 'weak_offenses'
+                    trendFactor: 'weak_offenses',
+                    odds: odds?.find(o => o.home_team === homeTeam)?.bookmakers?.[0]?.markets?.[2]?.outcomes?.[1]?.price || null
                 });
             }
         });
