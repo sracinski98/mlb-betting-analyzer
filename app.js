@@ -178,12 +178,6 @@ function formatCategory(category) {
         .join(' ');
 }
 
-    // Add event listeners for track buttons
-    parlayContainer.querySelectorAll('.track-parlay-btn').forEach(btn => {
-        btn.addEventListener('click', () => trackBet(JSON.parse(btn.dataset.parlay)));
-    });
-}
-
 function updateConfidenceChart(data) {
     const ctx = document.getElementById('confidenceChart').getContext('2d');
     
