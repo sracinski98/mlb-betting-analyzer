@@ -1011,7 +1011,7 @@ class MLBAnalyticsEngine {
 
     // Mock data methods for fallback
     getMockGameData() {
-        return [
+        const games = [
             {
                 gameId: 1,
                 awayTeam: 'New York Yankees',
@@ -1020,17 +1020,31 @@ class MLBAnalyticsEngine {
                 startTime: new Date().toISOString(),
                 status: 'Scheduled',
                 awayProbablePitcher: 'Gerrit Cole',
-                homeProbablePitcher: 'Lucas Giolito'
+                homeProbablePitcher: 'Lucas Giolito',
+                weather: {
+                    temperature: 75,
+                    condition: 'Clear',
+                    windSpeed: 8,
+                    windDirection: 'SW',
+                    humidity: 45
+                }
             },
             {
                 gameId: 2,
                 awayTeam: 'Los Angeles Dodgers',
-                homeTeam: 'San Francisco Giants',
-                venue: 'Oracle Park',
+                homeTeam: 'Colorado Rockies',
+                venue: 'Coors Field',
                 startTime: new Date().toISOString(),
                 status: 'Scheduled',
                 awayProbablePitcher: 'Walker Buehler',
-                homeProbablePitcher: 'Logan Webb'
+                homeProbablePitcher: 'Logan Webb',
+                weather: {
+                    temperature: 82,
+                    condition: 'Sunny',
+                    windSpeed: 12,
+                    windDirection: 'W',
+                    humidity: 35
+                }
             },
             {
                 gameId: 3,
@@ -1040,9 +1054,51 @@ class MLBAnalyticsEngine {
                 startTime: new Date().toISOString(),
                 status: 'Scheduled',
                 awayProbablePitcher: 'Spencer Strider',
-                homeProbablePitcher: 'Zack Wheeler'
+                homeProbablePitcher: 'Zack Wheeler',
+                weather: {
+                    temperature: 78,
+                    condition: 'Partly Cloudy',
+                    windSpeed: 10,
+                    windDirection: 'SE',
+                    humidity: 55
+                }
+            },
+            {
+                gameId: 4,
+                awayTeam: 'Houston Astros',
+                homeTeam: 'Texas Rangers',
+                venue: 'Globe Life Field',
+                startTime: new Date().toISOString(),
+                status: 'Scheduled',
+                awayProbablePitcher: 'Framber Valdez',
+                homeProbablePitcher: 'Jacob deGrom',
+                weather: {
+                    temperature: 85,
+                    condition: 'Clear',
+                    windSpeed: 5,
+                    windDirection: 'S',
+                    humidity: 40
+                }
             }
         ];
+        
+        // Add some player stats and matchup info
+        games.forEach(game => {
+            game.stats = {
+                away: {
+                    teamAvg: '.265',
+                    runsPerGame: 4.8,
+                    homers: 125
+                },
+                home: {
+                    teamAvg: '.258',
+                    runsPerGame: 4.5,
+                    homers: 118
+                }
+            };
+        });
+        
+        return games;
     }
 
     getMockOddsData() {
