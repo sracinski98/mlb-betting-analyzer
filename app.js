@@ -257,7 +257,7 @@ async function runAnalysis() {
         const engine = new window.MLBAnalyticsEngine();
         
         // Show loading state
-        const analyzeButton = document.getElementById('analyzeButton');
+        const analyzeButton = document.getElementById('analyzeBtn');
         if (analyzeButton) {
             analyzeButton.disabled = true;
             analyzeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
@@ -277,7 +277,7 @@ async function runAnalysis() {
         alert("An error occurred while running the analysis. Please try again.");
         
         // Reset button on error
-        const analyzeButton = document.getElementById('analyzeButton');
+        const analyzeButton = document.getElementById('analyzeBtn');
         if (analyzeButton) {
             analyzeButton.disabled = false;
             analyzeButton.innerHTML = '<i class="fas fa-play"></i> Run Analysis';
@@ -288,7 +288,7 @@ async function runAnalysis() {
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Content Loaded - Setting up event listeners");
-    const analyzeButton = document.getElementById('analyzeButton');
+    const analyzeButton = document.getElementById('analyzeBtn');
     
     if (analyzeButton) {
         console.log("Analyze button found - adding click listener");
