@@ -255,14 +255,24 @@ function updateParlays(parlays) {
                                                 return `
                                                     <div class="bet-line">
                                                         <div class="bet-header">
-                                                            <strong>${legData.isUnder ? 'Under' : 'Over'}</strong>
-                                                            <span class="total-value">${legData.total}</span> 
-                                                            ${legData.type} 
+                                                            ${legData.total ? 
+                                                                `<strong>${legData.isUnder ? 'Under' : 'Over'}</strong>
+                                                                 <span class="total-value">${legData.total}</span>` 
+                                                                : ''}
+                                                            ${legData.type ? `<span class="bet-type">${formatBetType(legData.type)}</span>` : ''} 
                                                         </div>
                                                         <div class="bet-details">
-                                                            ${legData.player ? `<div class="player-info">${legData.player}${legData.team ? ` (${legData.team})` : ''}</div>` : ''}
-                                                            ${!legData.player && legData.team ? `<div class="team-info">${legData.team}</div>` : ''}
-                                                            <span class="confidence-indicator ${leg.confidence?.toLowerCase()}">${leg.confidence?.toUpperCase()}</span>
+                                                            ${legData.player ? 
+                                                                `<div class="player-info">
+                                                                    ${legData.player}
+                                                                    ${legData.team ? ` (${legData.team})` : ''}
+                                                                </div>` 
+                                                                : legData.team ? 
+                                                                    `<div class="team-info">${legData.team}</div>` 
+                                                                    : ''}
+                                                            ${leg.confidence ? 
+                                                                `<span class="confidence-indicator ${leg.confidence.toLowerCase()}">${leg.confidence.toUpperCase()}</span>`
+                                                                : ''}
                                                         </div>
                                                     </div>
                                                 `;
@@ -278,13 +288,14 @@ function updateParlays(parlays) {
                                                     ${leg.confidence ? `<span class="confidence-pill ${leg.confidence.toLowerCase()}">${leg.confidence.toUpperCase()}</span>` : ''}
                                                 </div>
                                                 <div class="leg-details">
-                                                    ${leg.player ? `<p class="player-name">${leg.player}</p>` : ''}
-                                                    ${leg.team ? `<p class="team-name">${leg.team}</p>` : ''}
-                                                    ${leg.homeTeam && leg.awayTeam ? `<p class="matchup">${leg.awayTeam} @ ${leg.homeTeam}</p>` : ''}
+                                                    ${leg.player ? `<p class="player-name">${leg.player}${leg.team ? ` (${leg.team})` : ''}</p>` : ''}
+                                                    ${!leg.player && (leg.team || (leg.homeTeam && leg.awayTeam)) ? 
+                                                        `<p class="team-name">${leg.team || `${leg.awayTeam} @ ${leg.homeTeam}`}</p>` : ''}
                                                 ${(() => {
-                                                    // Try to extract number from various fields
+                                                    // Try to extract number and bet details
                                                     let total;
                                                     let displayText = '';
+                                                    let betType = '';
                                                     
                                                     if (leg.propLine) {
                                                         const match = leg.propLine.match(/(\d+\.?\d*)/);
@@ -308,18 +319,26 @@ function updateParlays(parlays) {
                                                         }
                                                     }
                                                     
-                                                    const isUnder = leg.betType?.toLowerCase().includes('under');
-                                                    const type = leg.propType || leg.type || '';
+                                                    // Try to determine bet type from various fields
+                                                    betType = leg.propType || leg.type || leg.betType || '';
+                                                    betType = betType ? formatBetType(betType) : '';
                                                     
+                                                    const isUnder = (leg.betType || '').toLowerCase().includes('under');
+                                                    const overUnder = total ? (isUnder ? 'Under' : 'Over') : '';
+                                                    
+                                                    // If we have a total, show the over/under line
                                                     if (total) {
                                                         return `
                                                             <p class="prop-line highlight">
-                                                                ${isUnder ? 'Under' : 'Over'} ${total} 
-                                                                ${type}
+                                                                ${overUnder} ${total} ${betType}
                                                             </p>
-                                                            <p class="prop-line-desc">${displayText}</p>`;
+                                                            ${displayText ? `<p class="prop-line-desc">${displayText}</p>` : ''}`;
                                                     } else if (leg.propLine) {
+                                                        // If we have a prop line but no total, just show the prop line
                                                         return `<p class="prop-line">${leg.propLine}</p>`;
+                                                    } else if (betType) {
+                                                        // If we only have a bet type, show that
+                                                        return `<p class="prop-line">${betType}</p>`;
                                                     }
                                                     return '';
                                                 })()}
