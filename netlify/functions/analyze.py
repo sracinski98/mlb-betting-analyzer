@@ -1,4 +1,4 @@
-from http.server import BaseHTTPRequestHandler
+import json
 import sys
 import os
 import logging
@@ -33,50 +33,50 @@ except Exception as e:
     logger.error(traceback.format_exc())
     raise
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        try:
-            logger.info("Received GET request")
-            
-            # Log environment variables (excluding sensitive data)
-            env_vars = {k: v for k, v in os.environ.items() if 'KEY' not in k.upper()}
-            logger.info(f"Environment variables: {env_vars}")
-            
-            # Get today's games and analysis
-            logger.info("Starting game analysis")
-            recommendations = analyze_games(mlb_api)
-            logger.info(f"Analysis complete. Found {len(recommendations.get('team_bets', []))} team bets and {len(recommendations.get('parlays', []))} parlays")
-            
-            # Send response with CORS headers
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Access-Control-Allow-Methods', 'GET')
-            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-            self.end_headers()
-            self.wfile.write(json.dumps(recommendations).encode())
-            logger.info("Response sent successfully")
-            return
-            
-        except Exception as e:
-            import traceback
-            error_msg = str(e)
-            tb = traceback.format_exc()
-            error_details = {
-                "error": f"Analysis failed: {error_msg}",
-                "traceback": tb
-            }
-            print("Error in handler:", error_msg)
-            print("Traceback:", tb)  # This will appear in Netlify function logs
-            
-            self.send_response(500)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Access-Control-Allow-Methods', 'GET')
-            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-            self.end_headers()
-            self.wfile.write(json.dumps(error_details).encode())
-            return
+def handler(event, context):
+    try:
+        logger.info("Received request")
+        
+        # Log environment variables (excluding sensitive data)
+        env_vars = {k: v for k, v in os.environ.items() if 'KEY' not in k.upper()}
+        logger.info(f"Environment variables: {env_vars}")
+        
+        # Get today's games and analysis
+        logger.info("Starting game analysis")
+        recommendations = analyze_games(mlb_api)
+        logger.info(f"Analysis complete. Found {len(recommendations.get('team_bets', []))} team bets and {len(recommendations.get('parlays', []))} parlays")
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'GET'
+            },
+            'body': json.dumps(recommendations)
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        tb = traceback.format_exc()
+        error_details = {
+            "error": f"Analysis failed: {error_msg}",
+            "traceback": tb
+        }
+        logger.error("Error in handler: %s", error_msg)
+        logger.error("Traceback: %s", tb)
+        
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'GET'
+            },
+            'body': json.dumps(error_details)
+        }
 
 def analyze_games(mlb_api):
     """Analyze all MLB games and return betting recommendations."""
