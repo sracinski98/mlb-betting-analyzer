@@ -54,6 +54,14 @@ function removeBet(trackingId) {
 }
 
 function renderPropCards(props, category) {
+    if (!Array.isArray(props)) {
+        console.error('Props is not an array:', props);
+        return '';
+    }
+    
+    // Log incoming props for debugging
+    console.log(`Rendering ${props.length} props for category ${category}`);
+    
     // Deduplicate props based on betType and reason
     const uniqueProps = props.reduce((acc, prop) => {
         const key = `${prop.betType}-${prop.reason}`;
@@ -63,11 +71,15 @@ function renderPropCards(props, category) {
         return acc;
     }, {});
 
-    return Object.values(uniqueProps).map(prop => `
-        <div class="prop-card ${category} ${prop.confidence.toLowerCase()}">
+    return Object.values(uniqueProps).map(prop => {
+        // Log each prop being rendered
+        console.log('Rendering prop:', prop);
+        
+        return `
+        <div class="prop-card ${category} ${prop.confidence ? prop.confidence.toLowerCase() : 'medium'}">
             <div class="prop-header">
                 <div class="confidence-score">${prop.score?.toFixed(1) || '0.0'}/10</div>
-                <div class="confidence-label">${prop.confidenceLabel || prop.confidence.toUpperCase()}</div>
+                <div class="confidence-label">${prop.confidenceLabel || (prop.confidence ? prop.confidence.toUpperCase() : 'MEDIUM')}</div>
             </div>
             <div class="prop-content">
                 <h4>${prop.player || formatBetType(prop.betType)}</h4>
@@ -81,7 +93,7 @@ function renderPropCards(props, category) {
                 <i class="fas fa-plus"></i> Track Bet
             </button>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function formatBetType(betType) {
@@ -235,11 +247,85 @@ function updateAnalytics(recommendations) {
 
 function updateUI(result) {
     try {
-        updateAnalytics(result.recommendations);
-        updateParlays(result.parlays);
-        updatePlayerProps(result.recommendations);
+        console.log("Starting UI update with result:", result);
+        
+        // Validate result structure
+        if (!result || !result.recommendations || !result.parlays) {
+            throw new Error('Invalid result structure');
+        }
+        
+        console.log("Result contains:", {
+            recommendations: result.recommendations.length,
+            parlays: result.parlays.length,
+            games: result.games?.length
+        });
+        
+        // Sort recommendations by score
+        const sortedRecommendations = [...result.recommendations].sort((a, b) => (b.score || 0) - (a.score || 0));
+        
+        // Update top picks section
+        const topPicks = document.getElementById('topPicks');
+        if (topPicks) {
+            const topRecommendations = sortedRecommendations.slice(0, 5);
+            console.log("Top picks to display:", topRecommendations);
+            if (topRecommendations.length > 0) {
+                topPicks.innerHTML = renderPropCards(topRecommendations, 'top-pick');
+            } else {
+                topPicks.innerHTML = '<div class="no-data">No top picks available</div>';
+            }
+        }
+        
+        // Update analytics with all recommendations
+        console.log("Updating analytics with recommendations:", result.recommendations.length);
+        if (result.recommendations.length > 0) {
+            updateAnalytics(result.recommendations);
+        }
+        
+        // Update parlays section
+        console.log("Updating parlays with:", result.parlays.length);
+        const parlayContainer = document.getElementById('parlayRecommendations');
+        if (parlayContainer) {
+            if (result.parlays.length > 0) {
+                updateParlays(result.parlays);
+            } else {
+                parlayContainer.innerHTML = '<div class="no-data">No parlay recommendations available</div>';
+            }
+        }
+        
+        // Update player props section
+        console.log("Updating player props with recommendations:", result.recommendations.length);
+        const propsContainer = document.getElementById('playerProps');
+        if (propsContainer) {
+            if (result.recommendations.length > 0) {
+                updatePlayerProps(result.recommendations);
+            } else {
+                propsContainer.innerHTML = '<div class="no-data">No player props available</div>';
+            }
+        }
+        
+        // Update stats
+        const totalOppElement = document.getElementById('totalOpportunities');
+        if (totalOppElement) {
+            totalOppElement.textContent = result.recommendations.length.toString();
+        }
+        
+        const highConfElement = document.getElementById('highConfidence');
+        if (highConfElement) {
+            const highConfCount = result.recommendations.filter(r => 
+                ['elite', 'very-high', 'high'].includes(r.confidence?.toLowerCase())
+            ).length;
+            highConfElement.textContent = highConfCount.toString();
+        }
+        
+        // Show any games found
+        if (result.games?.length > 0) {
+            console.log("Games for today:", result.games.map(g => `${g.awayTeam} @ ${g.homeTeam}`));
+        }
+        
     } catch (error) {
         console.error('UI update error:', error);
+        console.error('Error stack:', error.stack);
+        alert('An error occurred while updating the UI. Check the console for details.');
         throw error;
     }
 }
@@ -254,33 +340,97 @@ async function runAnalysis() {
     }
     
     try {
-        const engine = new window.MLBAnalyticsEngine();
+        // Create engine instance with error handling
+        let engine;
+        try {
+            engine = new window.MLBAnalyticsEngine();
+            console.log("Created MLBAnalyticsEngine instance:", engine);
+        } catch (error) {
+            console.error("Failed to create MLBAnalyticsEngine instance:", error);
+            throw new Error("Failed to initialize analytics engine");
+        }
         
         // Show loading state
         const analyzeButton = document.getElementById('analyzeBtn');
+        const loadingContainer = document.getElementById('loadingContainer');
+        
         if (analyzeButton) {
             analyzeButton.disabled = true;
             analyzeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
         }
         
-        const result = await engine.runComprehensiveAnalysis();
-        console.log("Analysis complete:", result);
-        updateUI(result);
+        if (loadingContainer) {
+            loadingContainer.style.display = 'block';
+        }
         
-        // Reset button state
+        console.log("Running comprehensive analysis...");
+        let result;
+        try {
+            result = await engine.runComprehensiveAnalysis();
+            console.log("Analysis complete, raw result:", result);
+        } catch (error) {
+            console.error("Failed during analysis:", error);
+            throw new Error("Analysis failed: " + error.message);
+        }
+        
+        // Validate result structure
+        if (!result || !result.recommendations || !result.parlays) {
+            console.error("Invalid result structure:", result);
+            throw new Error("Analysis result is missing required data");
+        }
+        
+        if (!result.games || result.games.length === 0) {
+            console.warn("No games found for today");
+        }
+        
+        // Log the data we're working with
+        console.log("Analysis results:", {
+            games: result.games?.length || 0,
+            recommendations: result.recommendations.length,
+            parlays: result.parlays.length,
+            highConfidence: result.recommendations.filter(r => 
+                ['elite', 'very-high', 'high'].includes(r.confidence?.toLowerCase())
+            ).length
+        });
+        
+        if (result.recommendations.length > 0) {
+            console.log("Sample recommendation:", result.recommendations[0]);
+        }
+        if (result.parlays.length > 0) {
+            console.log("Sample parlay:", result.parlays[0]);
+        }
+        
+        // Update UI with results
+        try {
+            updateUI(result);
+        } catch (error) {
+            console.error("Failed to update UI:", error);
+            throw new Error("Failed to display results: " + error.message);
+        }
+        
+        // Reset loading state
         if (analyzeButton) {
             analyzeButton.disabled = false;
             analyzeButton.innerHTML = '<i class="fas fa-play"></i> Run Analysis';
         }
+        if (loadingContainer) {
+            loadingContainer.style.display = 'none';
+        }
+        
     } catch (error) {
         console.error("Analysis failed:", error);
-        alert("An error occurred while running the analysis. Please try again.");
+        alert("An error occurred while running the analysis: " + error.message);
         
-        // Reset button on error
+        // Reset loading state
         const analyzeButton = document.getElementById('analyzeBtn');
+        const loadingContainer = document.getElementById('loadingContainer');
+        
         if (analyzeButton) {
             analyzeButton.disabled = false;
             analyzeButton.innerHTML = '<i class="fas fa-play"></i> Run Analysis';
+        }
+        if (loadingContainer) {
+            loadingContainer.style.display = 'none';
         }
     }
 }
