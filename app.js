@@ -75,7 +75,10 @@ function updateTopPicks(recommendations) {
             </div>
             <div class="pick-content">
                 <h3>${formatBetType(pick.betType)}</h3>
-                <p class="matchup">${pick.matchup || pick.player || ''}</p>
+                ${pick.player ? `<p class="player">${pick.player}</p>` : ''}
+                ${pick.team ? `<p class="team">${pick.team}</p>` : ''}
+                <p class="matchup">${formatMatchup(pick.matchup, pick.team) || ''}</p>
+                <p class="odds">Odds: ${formatOdds(pick.odds)}</p>
                 <p class="reason">${pick.reason || ''}</p>
                 <div class="pick-actions">
                     <button class="track-bet-btn" data-bet='${JSON.stringify(pick)}'>Track Bet</button>
@@ -100,9 +103,12 @@ function updateTeamBets(teamBets) {
             </div>
             <div class="bet-content">
                 <h3>${formatBetType(bet.betType)}</h3>
-                ${bet.team ? `<p class="team">${bet.team}</p>` : ''}
-                <p class="matchup">${formatMatchup(bet.matchup, bet.team) || ''}</p>
-                <p class="odds">Odds: ${formatOdds(bet.odds)}</p>
+                <div class="bet-details">
+                    ${bet.team ? `<p class="team"><strong>${bet.team}</strong></p>` : ''}
+                    <p class="game">${formatMatchup(bet.matchup, bet.team) || ''}</p>
+                    ${bet.line ? `<p class="line">Line: ${bet.line}</p>` : ''}
+                    <p class="odds">Odds: ${formatOdds(bet.odds)}</p>
+                </div>
                 <p class="reason">${bet.reason || ''}</p>
                 <div class="bet-actions">
                     <button class="track-bet-btn" data-bet='${JSON.stringify(bet)}'>Track Bet</button>
