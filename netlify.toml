@@ -1,4 +1,12 @@
 [build]
   command = "pip install -r requirements.txt"
   functions = "netlify/functions"
-  publish = "public"[build.environment]  PYTHON_VERSION = "3.9"[[redirects]]  from = "/analyze"  to = "/.netlify/functions/analyze"  status = 200
+  publish = "public"
+
+[build.environment]
+  PYTHON_VERSION = "3.9"
+
+[[redirects]]
+  from = "/analyze"
+  to = "/.netlify/functions/analyze"
+  status = 200
