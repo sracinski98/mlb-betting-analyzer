@@ -277,7 +277,7 @@ class MLBApi:
             if isinstance(team_data, dict) and 'team' in team_data:
                 team_info = team_data['team']
                 
-                # Get team ID
+                    # Get team ID
                 team_id = str(team_info.get('id', ''))
                 stats['team_id'] = team_id
                 
@@ -293,12 +293,17 @@ class MLBApi:
                                     value = safe_float(stat.get('value'))
                                     if name == 'winpercent':
                                         stats['win_pct'] = value
+                                        stats['recent_win_pct'] = value  # Use current win percentage as recent
                                     elif name == 'gameplayed':
                                         stats['games_played'] = value
                                     else:
                                         stats[name] = value
-                
-                # Get detailed stats
+                                        
+                # Add default values for recent performance if not set
+                if 'recent_win_pct' not in stats:
+                    stats['recent_win_pct'] = stats.get('win_pct', 0.500)
+                if 'recent_runs_per_game' not in stats:
+                    stats['recent_runs_per_game'] = 4.5  # League average                # Get detailed stats
                 response = requests.get(
                     f"{self.ESPN_STATS_ENDPOINT}/teams/{team_id}",
                     params={
