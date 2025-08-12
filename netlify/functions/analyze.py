@@ -27,13 +27,20 @@ class handler(BaseHTTPRequestHandler):
             return
             
         except Exception as e:
+            import traceback
+            error_details = {
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }
+            print("Error in handler:", error_details)  # This will appear in Netlify function logs
+            
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Access-Control-Allow-Methods', 'GET')
             self.send_header('Access-Control-Allow-Headers', 'Content-Type')
             self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode())
+            self.wfile.write(json.dumps(error_details).encode())
             return
 
 def analyze_games(mlb_api):

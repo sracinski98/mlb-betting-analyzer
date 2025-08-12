@@ -60,7 +60,12 @@
                 const data = await response.json();
                 displayResults(data);
             } catch (err) {
-                error.querySelector('span').textContent = 'Error analyzing games. Please try again.';
+                console.error('Analysis error:', err);
+                const errorData = await err.response?.json() || { error: err.message };
+                error.querySelector('span').textContent = `Error: ${errorData.error}`;
+                if (errorData.traceback) {
+                    console.error('Full error traceback:', errorData.traceback);
+                }
                 error.classList.remove('hidden');
             } finally {
                 loading.classList.add('hidden');
