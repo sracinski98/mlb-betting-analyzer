@@ -148,22 +148,26 @@ function updateParlays(parlays) {
         <div class="parlay-card">
             <div class="parlay-header score-${getConfidenceClass(parlay.avgScore)}">
                 <span class="score">${parlay.avgScore.toFixed(1)}/10</span>
-                <span class="risk-level">${parlay.riskLevel ? parlay.riskLevel.toUpperCase() : getConfidenceLabel(parlay.avgScore)}</span>
+                <span class="confidence">${parlay.riskLevel ? parlay.riskLevel.toUpperCase() : getConfidenceLabel(parlay.avgScore)}</span>
             </div>
             <div class="parlay-content">
-                <h3>${parlay.legs.length}-leg parlay</h3>
+                <div class="bet-type">${parlay.legs.length}-Leg Parlay</div>
                 <div class="parlay-legs">
                     ${parlay.legs.map(leg => `
                         <div class="parlay-leg">
-                            <h4>${leg.matchup || leg.player}</h4>
-                            <p class="bet-type">${formatBetType(leg.betType)}</p>
+                            <h4>${leg.matchup || leg.player || ''}</h4>
+                            <p>${formatBetType(leg.betType)}</p>
                             ${leg.odds ? `<p class="odds">Odds: ${formatOdds(leg.odds)}</p>` : ''}
                         </div>
                     `).join('')}
                 </div>
-                <p class="reason">${parlay.reasoning || ''}</p>
-                <div class="parlay-actions">
+                ${parlay.reasoning ? `<p class="reason">${parlay.reasoning}</p>` : ''}
+                <div class="bet-actions">
                     <button class="track-bet-btn" data-bet='${JSON.stringify(parlay)}'>Track Parlay</button>
+                </div>
+                <div class="bet-metadata">
+                    <span>Combined odds: ${formatOdds(parlay.totalOdds) || 'N/A'}</span>
+                    ${parlay.potential_payout ? `<span>Potential payout: ${parlay.potential_payout}</span>` : ''}
                 </div>
             </div>
         </div>

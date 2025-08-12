@@ -311,26 +311,140 @@ select {
     gap: 1.5rem;
 }
 
-.pick-card {
-    background: var(--background);
+.pick-card, .bet-card, .parlay-card {
+    background: var(--surface);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    padding: 1.5rem;
+    overflow: hidden;
     transition: all 0.2s ease;
     position: relative;
 }
 
-.pick-card:hover {
+.pick-card:hover, .bet-card:hover, .parlay-card:hover {
     border-color: var(--primary-color);
     box-shadow: var(--shadow-lg);
     transform: translateY(-2px);
 }
 
-.pick-header {
+.pick-header, .bet-header, .parlay-header {
     display: flex;
-    justify-content: between;
-    align-items: flex-start;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--background);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.pick-content, .bet-content, .parlay-content {
+    padding: 1.5rem;
+}
+
+.confidence {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.score {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+}
+
+.bet-type {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.matchup {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.reason {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
     margin-bottom: 1rem;
+}
+
+.score-high .confidence {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.score-medium .confidence {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.score-low .confidence {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.parlay-legs {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--background);
+    border-radius: var(--border-radius);
+}
+
+.parlay-leg {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.parlay-leg:last-child {
+    border-bottom: none;
+}
+
+.parlay-leg h4 {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.bet-actions {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.track-bet-btn {
+    padding: 0.5rem 1rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.track-bet-btn:hover {
+    background: var(--primary-dark);
+}
+
+.track-bet-btn.tracked {
+    background: var(--success-color);
+    cursor: default;
+}
+
+.bet-metadata {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .confidence-badge {
@@ -532,27 +646,31 @@ select {
     position: fixed;
     bottom: 2rem;
     right: 2rem;
-    width: 56px;
-    height: 56px;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 50%;
+    padding: 0.75rem 1.5rem;
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 8px;
     cursor: pointer;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow);
     transition: all 0.2s ease;
     z-index: 1000;
+    font-weight: 500;
+    font-size: 0.875rem;
 }
 
 .fab:hover {
-    background: var(--primary-dark);
-    transform: scale(1.1);
+    background: var(--background);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    box-shadow: var(--shadow-lg);
 }
 
 .fab i {
-    font-size: 1.25rem;
+    font-size: 1rem;
 }
 
 /* Responsive Design */
