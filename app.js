@@ -126,12 +126,62 @@ function updateTeamBets(teamBets) {
 function updatePlayerProps(props) {
     const propsContainer = document.getElementById('playerProps');
     
-    // Categorize props with more inclusive filters
+    // Enhanced prop categorization with detailed filters
+    console.log('All props:', props); // Debug log
+
     const categorizedProps = {
-        hitting: props.filter(p => !p.betType.includes('pitcher_') && (p.betType.includes('player_') || p.betType.includes('hits') || p.betType.includes('hr') || p.betType.includes('rbi'))),
-        pitching: props.filter(p => p.betType.includes('pitcher_') || p.betType.includes('strikeout') || p.betType.includes('quality_start') || p.betType.includes('innings')),
-        streaks: props.filter(p => p.propFactor === 'hot_streak' || (p.player && p.player in (window.MLBAnalyticsEngine.prototype.playerDatabase || {}) && window.MLBAnalyticsEngine.prototype.playerDatabase[p.player]?.hotStreak)),
-        situational: props.filter(p => p.venueFactor || p.weatherFactor || (p.propFactor && p.propFactor !== 'hot_streak'))
+        hitting: props.filter(p => {
+            const isPitchingProp = 
+                p.betType?.includes('pitcher_') ||
+                p.betType?.includes('strikeouts') ||
+                p.betType?.includes('quality_start') ||
+                p.betType?.includes('innings') ||
+                p.category === 'pitching' ||
+                p.position === 'P';
+            
+            if (isPitchingProp) return false;
+
+            return p.betType?.includes('player_') ||
+                   p.betType?.includes('hits') ||
+                   p.betType?.includes('hr') ||
+                   p.betType?.includes('rbi') ||
+                   p.betType?.includes('bases') ||
+                   p.betType?.includes('runs') ||
+                   p.category === 'hitting';
+        }),
+        pitching: props.filter(p => {
+            const isPitchingProp = 
+                p.betType?.includes('pitcher_') ||
+                p.betType?.includes('strikeouts') ||
+                p.betType?.includes('quality_start') ||
+                p.betType?.includes('innings') ||
+                p.category === 'pitching' ||
+                p.position === 'P' ||
+                p.player?.toLowerCase().includes('pitcher');
+            
+            console.log(`Prop ${p.player || p.betType}: isPitchingProp = ${isPitchingProp}`); // Debug log
+            return isPitchingProp;
+        }),
+        streaks: props.filter(p => 
+            p.propFactor === 'hot_streak' || 
+            (p.player && p.player in (window.MLBAnalyticsEngine.prototype.playerDatabase || {}) && 
+             window.MLBAnalyticsEngine.prototype.playerDatabase[p.player]?.hotStreak)
+        ),
+        situational: props.filter(p => {
+            const hasFactor = p.venueFactor || p.weatherFactor || 
+                            (p.propFactor && p.propFactor !== 'hot_streak');
+            const isSpecialVenue = p.reason && (
+                p.reason.includes('Coors Field') ||
+                p.reason.includes('Yankee Stadium') ||
+                p.reason.includes('Fenway Park')
+            );
+            const hasWeatherImpact = p.reason && (
+                p.reason.includes('temperature') ||
+                p.reason.includes('wind') ||
+                p.reason.includes('humidity')
+            );
+            return hasFactor || isSpecialVenue || hasWeatherImpact;
+        })
     };
     
     // Debug log for prop counts
@@ -270,27 +320,57 @@ function renderPropCards(props, category) {
         `;
     }
 
-    return props.map(prop => `
-        <div class="prop-card" data-prop-type="${category}">
+    return props.map(prop => {
+        // Enhanced reason formatting
+        let enhancedReason = prop.reason;
+        if (category === 'situational') {
+            const venueFactor = prop.venueFactor ? `Venue Impact: ${prop.venueFactor.replace(/_/g, ' ')}` : '';
+            const weatherFactor = prop.weatherFactor ? `Weather Impact: ${prop.weatherFactor.replace(/_/g, ' ')}` : '';
+            const modelFactor = prop.model ? `Model: ${prop.model.replace(/_/g, ' ')}` : '';
+            const factors = [venueFactor, weatherFactor, modelFactor].filter(f => f).join(' | ');
+            
+            if (factors) {
+                enhancedReason = `${prop.reason}<br><span class="factor-detail">${factors}</span>`;
+            }
+            
+            if (prop.venueFactors) {
+                enhancedReason += `<br><span class="venue-stats">Venue Stats: ${JSON.stringify(prop.venueFactors)}</span>`;
+            }
+        }
+
+        return `
+        <div class="prop-card ${category}-card" data-prop-type="${category}">
             <div class="prop-header score-${getConfidenceClass(prop.score)}">
                 <span class="score">${prop.score.toFixed(1)}/10</span>
                 <span class="confidence">${prop.confidenceLabel || getConfidenceLabel(prop.score)}</span>
             </div>
             <div class="prop-content">
-                <h3>${prop.player || prop.pitcher}</h3>
-                <p class="team">${prop.team || getTeamFromMatchup(prop.matchup, prop.player) || ''}</p>
-                <p class="prop-type">${formatBetType(prop.betType)}</p>
-                <p class="game">${formatMatchup(prop.matchup, prop.team) || ''}</p>
-                <p class="odds">Odds: ${formatOdds(prop.odds)}</p>
-                <p class="reason">${prop.reason || ''}</p>
-                ${renderPropStats(prop, category)}
-                ${renderFactorBadges(prop)}
+                <div class="prop-title">
+                    <h3>${prop.player || prop.pitcher}</h3>
+                    <span class="team-badge">${prop.team || getTeamFromMatchup(prop.matchup, prop.player) || ''}</span>
+                </div>
+                <div class="prop-details">
+                    <div class="prop-type-line">
+                        <span class="prop-label">${formatBetType(prop.betType)}</span>
+                        <span class="prop-value">${prop.propLine || ''}</span>
+                    </div>
+                    <p class="game-info">${formatMatchup(prop.matchup, prop.team) || ''}</p>
+                    ${prop.odds ? `<p class="odds-info">Odds: ${formatOdds(prop.odds)}</p>` : ''}
+                </div>
+                <div class="prop-analysis">
+                    <p class="reason">${enhancedReason}</p>
+                    ${renderPropStats(prop, category)}
+                    ${renderFactorBadges(prop)}
+                </div>
                 <div class="prop-actions">
-                    <button class="track-bet-btn" data-bet='${JSON.stringify(prop)}'>Track Bet</button>
+                    <button class="track-bet-btn" data-bet='${JSON.stringify(prop)}'>
+                        <i class="fas fa-bookmark"></i> Track Bet
+                    </button>
                 </div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
+}
 }
 
 function renderPropStats(prop, category) {
@@ -521,20 +601,35 @@ function formatMatchup(matchup, playerTeam) {
 }
 
 function filterPropsByCategory(category) {
+    // Get all prop sections
     const sections = document.querySelectorAll('.prop-section');
     
-    if (category === 'all') {
-        sections.forEach(section => {
-            if (!section.classList.contains('empty')) {
-                section.style.display = 'block';
-            }
-        });
-    } else {
-        sections.forEach(section => {
-            const sectionType = section.id.replace('Props', '').toLowerCase();
-            section.style.display = (sectionType === category && !section.classList.contains('empty')) ? 'block' : 'none';
-        });
-    }
+    sections.forEach(section => {
+        // Get the section type from the ID (e.g., "hittingProps" -> "hitting")
+        const sectionType = section.id.replace('Props', '').toLowerCase();
+        
+        if (category === 'all') {
+            // Show all non-empty sections for 'all' category
+            section.style.display = section.classList.contains('empty') ? 'none' : 'block';
+        } else {
+            // Only show the selected category if it's not empty
+            const shouldShow = sectionType === category && !section.classList.contains('empty');
+            section.style.display = shouldShow ? 'block' : 'none';
+            
+            // Log for debugging
+            console.log(`Section ${sectionType}: ${shouldShow ? 'showing' : 'hiding'} (empty: ${section.classList.contains('empty')})`);
+        }
+    });
+
+    // Update counts in section headers
+    sections.forEach(section => {
+        const visibleCards = section.querySelectorAll('.prop-card:not([style*="display: none"])').length;
+        const header = section.querySelector('h3');
+        if (header) {
+            const sectionType = section.id.replace('Props', '');
+            header.textContent = `${sectionType} Props (${visibleCards})`;
+        }
+    });
 }
 
 function showNotification(message, type = 'info') {
@@ -672,25 +767,14 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 // Category buttons functionality
 document.querySelectorAll('.category-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-        const container = document.getElementById('playerProps');
         const category = btn.dataset.category;
         
         // Update active button
-        btn.closest('.category-nav').querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         
-        // Filter items
-        if (category === 'all') {
-            container.querySelectorAll('.prop-card').forEach(card => card.style.display = '');
-        } else {
-            container.querySelectorAll('.prop-card').forEach(card => {
-                if (card.dataset.propType === category) {
-                    card.style.display = '';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        }
+        // Filter prop sections
+        filterPropsByCategory(category);
     });
 });
 
