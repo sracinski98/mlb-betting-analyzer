@@ -112,6 +112,14 @@ function filterPropsByCategory(category) {
     const playerPropsSection = document.getElementById('playerProps');
     const parlaysSection = document.getElementById('parlayRecommendations');
     
+    // Log section visibility before change
+    console.log('Section visibility before filter:', {
+        topPicks: topPicksSection?.style.display,
+        playerProps: playerPropsSection?.style.display,
+        parlays: parlaysSection?.style.display,
+        category: category
+    });
+    
     // Update active button state
     const buttons = document.querySelectorAll('.category-btn');
     buttons.forEach(btn => {
@@ -348,14 +356,28 @@ function updateUI(result) {
         }
         
         // Update parlays section
-        console.log("Updating parlays with:", result.parlays.length);
+        console.log("Updating parlays with:", result.parlays);
+        if (!Array.isArray(result.parlays)) {
+            console.error("Parlays is not an array:", result.parlays);
+            return;
+        }
+        console.log("Parlay details:", result.parlays.map(p => ({
+            type: p.type,
+            legs: p.legs?.length,
+            category: p.parlayCategory
+        })));
+        
         const parlayContainer = document.getElementById('parlayRecommendations');
-        if (parlayContainer) {
-            if (result.parlays.length > 0) {
-                updateParlays(result.parlays);
-            } else {
-                parlayContainer.innerHTML = '<div class="no-data">No parlay recommendations available</div>';
-            }
+        if (!parlayContainer) {
+            console.error("Parlay container not found");
+            return;
+        }
+        console.log("Found parlay container:", parlayContainer);
+        
+        if (result.parlays.length > 0) {
+            updateParlays(result.parlays);
+        } else {
+            parlayContainer.innerHTML = '<div class="no-data">No parlay recommendations available</div>';
         }
         
 //Update team bets section
@@ -388,16 +410,7 @@ if (propsContainer) {
     }
 }
 
-//Update parlays section
-console.log("Updating parlays with:", result.parlays.length);
-const parlaySectionContainer = document.getElementById('parlayRecommendations');
-if (parlaySectionContainer) {
-    if (result.parlays.length > 0) {
-        updateParlays(result.parlays);
-    } else {
-        parlaySectionContainer.innerHTML = '<div class="no-data">No parlay recommendations available</div>';
-    }
-}        // Update stats
+// Remove duplicate parlay update section since it's handled above        // Update stats
         const totalOppElement = document.getElementById('totalOpportunities');
         if (totalOppElement) {
             totalOppElement.textContent = result.recommendations.length.toString();
@@ -599,16 +612,20 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Set up parlay type filter buttons
     const parlayButtons = document.querySelectorAll('.parlay-btn');
+    console.log('Found parlay filter buttons:', parlayButtons.length);
     parlayButtons.forEach(button => {
         button.addEventListener('click', (event) => {
-            const type = event.target.dataset.type;
+            const clickedButton = event.target.closest('.parlay-btn');
+            if (!clickedButton) return;
+
+            const type = clickedButton.dataset.type;
             console.log('Parlay type button clicked:', type);
             
             // Remove active class from all buttons
             parlayButtons.forEach(btn => btn.classList.remove('active'));
             
             // Add active class to clicked button
-            event.target.classList.add('active');
+            clickedButton.classList.add('active');
             
             // Filter parlays by type
             filterParlaysByType(type);
