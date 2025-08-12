@@ -212,19 +212,18 @@ function updateParlays(parlays) {
                                         <p class="parlay-legs-count">${parlay.legs.length}-leg parlay</p>
                                         <div class="bet-summary">
                                             ${parlay.legs.map(leg => {
-                                                // Parse the line value from propLine or reason
-                                                const lineMatch = leg.propLine?.match(/[OUou]nder (\d+\.?\d*)/);
-                                                const total = lineMatch ? lineMatch[1] : 
-                                                    leg.reason?.match(/[OUou]nder (\d+\.?\d*)/)?.[1] || 'N/A';
-                                                const isUnder = leg.betType?.toLowerCase().includes('under') || 
-                                                    leg.propLine?.toLowerCase().includes('under') ||
-                                                    leg.reason?.toLowerCase().includes('under');
+                                                const legData = {
+                                                    total: leg.line || leg.value || leg.total,
+                                                    isUnder: leg.betType?.toLowerCase().includes('under'),
+                                                    type: leg.propType || leg.type || '',
+                                                    player: leg.player || ''
+                                                };
                                                 return `
                                                     <div class="bet-line">
-                                                        <strong>${isUnder ? 'Under' : 'Over'}</strong>
-                                                        <span class="total-value">${total}</span> 
-                                                        ${leg.propType || ''} 
-                                                        ${leg.player ? `(${leg.player})` : ''}
+                                                        <strong>${legData.isUnder ? 'Under' : 'Over'}</strong>
+                                                        <span class="total-value">${legData.total}</span> 
+                                                        ${legData.type} 
+                                                        ${legData.player ? `(${legData.player})` : ''}
                                                         <span class="confidence-indicator ${leg.confidence?.toLowerCase()}">${leg.confidence?.toUpperCase()}</span>
                                                     </div>
                                                 `;
@@ -241,18 +240,15 @@ function updateParlays(parlays) {
                                                 </div>
                                                 ${leg.player ? `<p class="player-name">${leg.player}</p>` : ''}
                                                 ${(() => {
-                                                    const lineMatch = leg.propLine?.match(/[OUou]nder (\d+\.?\d*)/);
-                                                    const total = lineMatch ? lineMatch[1] : 
-                                                        leg.reason?.match(/[OUou]nder (\d+\.?\d*)/)?.[1];
-                                                    const isUnder = leg.betType?.toLowerCase().includes('under') || 
-                                                        leg.propLine?.toLowerCase().includes('under') ||
-                                                        leg.reason?.toLowerCase().includes('under');
+                                                    const total = leg.line || leg.value || leg.total;
+                                                    const isUnder = leg.betType?.toLowerCase().includes('under');
+                                                    const type = leg.propType || leg.type || '';
                                                     
                                                     if (total) {
                                                         return `
                                                             <p class="prop-line highlight">
                                                                 ${isUnder ? 'Under' : 'Over'} ${total} 
-                                                                ${leg.propType || ''}
+                                                                ${type}
                                                             </p>`;
                                                     } else if (leg.propLine) {
                                                         return `<p class="prop-line">${leg.propLine}</p>`;
