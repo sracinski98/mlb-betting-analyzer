@@ -255,21 +255,32 @@ function updateParlays(parlays) {
                                                 return `
                                                     <div class="bet-line">
                                                         <div class="bet-header">
+                                                            <div class="team-info">
+                                                                ${legData.team ? 
+                                                                    `<strong class="team-name">${legData.team}</strong>` :
+                                                                    legData.homeTeam && legData.awayTeam ? 
+                                                                    `<strong class="team-name">${legData.awayTeam} @ ${legData.homeTeam}</strong>` : 
+                                                                    ''}
+                                                            </div>
                                                             ${legData.total ? 
-                                                                `<strong>${legData.isUnder ? 'Under' : 'Over'}</strong>
-                                                                 <span class="total-value">${legData.total}</span>` 
-                                                                : ''}
-                                                            ${legData.type ? `<span class="bet-type">${formatBetType(legData.type)}</span>` : ''} 
+                                                                `<div class="bet-type-info">
+                                                                    <strong>${legData.isUnder ? 'Under' : 'Over'}</strong>
+                                                                    <span class="total-value">${legData.total}</span>
+                                                                    ${legData.type ? `<span class="bet-type">${formatBetType(legData.type)}</span>` : ''}
+                                                                </div>` 
+                                                                : legData.type ? 
+                                                                    `<div class="bet-type-info">
+                                                                        <span class="bet-type">${formatBetType(legData.type)}</span>
+                                                                    </div>` 
+                                                                    : ''} 
                                                         </div>
                                                         <div class="bet-details">
                                                             ${legData.player ? 
                                                                 `<div class="player-info">
-                                                                    ${legData.player}
-                                                                    ${legData.team ? ` (${legData.team})` : ''}
+                                                                    <strong class="player-name">${legData.player}</strong>
+                                                                    ${legData.position ? `<span class="position">${legData.position}</span>` : ''}
                                                                 </div>` 
-                                                                : legData.team ? 
-                                                                    `<div class="team-info">${legData.team}</div>` 
-                                                                    : ''}
+                                                                : ''}
                                                             ${leg.confidence ? 
                                                                 `<span class="confidence-indicator ${leg.confidence.toLowerCase()}">${leg.confidence.toUpperCase()}</span>`
                                                                 : ''}

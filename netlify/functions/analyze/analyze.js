@@ -137,11 +137,8 @@ async function findValueBets(games, oddsData) {
     // Add more mappings as needed
   };
 
-  // Ensure oddsData is an array
-  const odds = Array.isArray(oddsData) ? oddsData : [oddsData];
-
   // Process games in parallel
-  const gamePromises = games.map(async (game) => {
+  await Promise.all(games.map(async (game) => {
     const homeTeam = game.teams.home.team.name;
     const awayTeam = game.teams.away.team.name;
     const matchup = `${awayTeam} vs ${homeTeam}`;
@@ -269,6 +266,8 @@ async function findValueBets(games, oddsData) {
       }
     }
   });
+
+  })); // End of Promise.all
 
   // Sort hot streak bets by confidence
   const sortedHotStreakBets = hotStreakBets.sort((a, b) => 
