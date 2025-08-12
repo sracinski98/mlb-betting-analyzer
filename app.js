@@ -1,3 +1,94 @@
+// Store chart instances globally
+let confidenceChartInstance = null;
+let distributionChartInstance = null;
+
+function updateConfidenceChart(data) {
+    const ctx = document.getElementById('confidenceChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (confidenceChartInstance) {
+        confidenceChartInstance.destroy();
+    }
+    
+    // Create new chart
+    confidenceChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Elite', 'Very High', 'High', 'Medium', 'Low'],
+            datasets: [{
+                label: 'Confidence Distribution',
+                data: data,
+                backgroundColor: [
+                    '#4CAF50',
+                    '#8BC34A',
+                    '#CDDC39',
+                    '#FFC107',
+                    '#FF5722'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateAnalytics(recommendations) {
+    const confidenceData = [0, 0, 0, 0, 0]; // Elite, Very High, High, Medium, Low
+    
+    recommendations.forEach(rec => {
+        switch(rec.confidence) {
+            case 'elite': confidenceData[0]++; break;
+            case 'very-high': confidenceData[1]++; break;
+            case 'high': confidenceData[2]++; break;
+            case 'medium': case 'medium-high': case 'medium-low': confidenceData[3]++; break;
+            case 'low': case 'very-low': confidenceData[4]++; break;
+        }
+    });
+    
+    updateConfidenceChart(confidenceData);
+}
+
+function updateUI(result) {
+    try {
+        updateAnalytics(result.recommendations);
+        updateParlays(result.parlays);
+        updatePlayerProps(result.recommendations);
+    } catch (error) {
+        console.error('UI update error:', error);
+        throw error;
+    }
+}
+
+async function runAnalysis() {
+    console.log("Starting analysis...");
+    const engine = new window.MLBAnalyticsEngine();
+    
+    try {
+        const result = await engine.runComprehensiveAnalysis();
+        console.log("Analysis complete:", result);
+        updateUI(result);
+    } catch (error) {
+        console.log("Analysis failed:", error);
+    }
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    const analyzeButton = document.getElementById('analyzeButton');
+    if (analyzeButton) {
+        analyzeButton.addEventListener('click', runAnalysis);
+    }
+});
+
 // UI update function
 function updatePlayerProps(props) {
     const propsContainer = document.getElementById('playerProps');
