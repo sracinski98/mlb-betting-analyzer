@@ -9,6 +9,7 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  ODDS_API_KEY = "fe3e1db58259d6d7d3599e2ae3d22ecc"
 
 [[headers]]
   for = "/*"

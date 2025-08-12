@@ -1,0 +1,9 @@
+{
+  "name": "analyze",
+  "version": "1.0.0",
+  "description": "MLB betting analyzer function",
+  "main": "analyze.js",
+  "dependencies": {
+    "node-fetch": "^2.6.1"
+  }
+}
