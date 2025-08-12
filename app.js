@@ -241,27 +241,42 @@ function updateParlays(parlays) {
                                                     if (match) total = match[1];
                                                 }
                                                 
-                                                // Extract bet details
+                                                // Extract bet details and ensure we have all required values
+                                                console.log('Processing leg data:', leg);
+                                                
+                                                // Get team information
                                                 const teamDisplay = leg.team || 
                                                     (leg.homeTeam && leg.awayTeam ? `${leg.awayTeam} @ ${leg.homeTeam}` : '');
                                                 
-                                                // Get the total being bet on
-                                                const betTotal = total || leg.line || leg.value || leg.total;
+                                                // Get the total being bet on - try all possible sources
+                                                let betTotal = null;
+                                                if (leg.total) {
+                                                    betTotal = leg.total;
+                                                } else if (leg.line) {
+                                                    betTotal = leg.line;
+                                                } else if (leg.value) {
+                                                    betTotal = leg.value;
+                                                } else if (leg.propLine) {
+                                                    const match = leg.propLine.match(/(\d+\.?\d*)/);
+                                                    if (match) betTotal = match[1];
+                                                }
                                                 
                                                 // Determine if this is a team total or game total
                                                 const isTeamTotal = leg.betType?.toLowerCase().includes('team total');
                                                 
-                                                // Format bet description
+                                                // Format bet description with more detail
                                                 let betDesc = '';
                                                 if (isTeamTotal && leg.team) {
                                                     betDesc = `${leg.team} Team Total`;
+                                                } else if (leg.homeTeam && leg.awayTeam) {
+                                                    betDesc = `Game Total: ${leg.awayTeam} @ ${leg.homeTeam}`;
                                                 } else if (teamDisplay) {
                                                     betDesc = `Game Total (${teamDisplay})`;
                                                 }
                                                 
                                                 // Enhanced bet display logic
                                                 const legData = {
-                                                    total: betTotal,
+                                                    total: betTotal || 'N/A',  // Ensure we always have a value
                                                     isUnder: leg.betType?.toLowerCase().includes('under'),
                                                     type: leg.betType || leg.propType || leg.type || '',
                                                     player: leg.player || '',
@@ -270,14 +285,16 @@ function updateParlays(parlays) {
                                                     awayTeam: leg.awayTeam || '',
                                                     isTeamTotal: leg.betType?.toLowerCase().includes('team total')
                                                 };
+                                                
+                                                console.log('Processed leg data:', legData);
 
-                                                // Determine the bet description
+                                                // Enhanced bet description logic
                                                 let betDescription = '';
-                                                if (legData.isTeamTotal && legData.team) {
-                                                    betDescription = `${legData.team} Team Total`;
-                                                } else if (legData.homeTeam && legData.awayTeam) {
-                                                    betDescription = `Game Total: ${legData.awayTeam} @ ${legData.homeTeam}`;
-                                                } else if (legData.team) {
+                                                if (leg.betType?.toLowerCase().includes('team total') && leg.team) {
+                                                    betDescription = `${leg.team} Team Total`;
+                                                } else if (leg.homeTeam && leg.awayTeam) {
+                                                    betDescription = `Game Total: ${leg.awayTeam} @ ${leg.homeTeam}`;
+                                                } else if (leg.team) {
                                                     betDescription = `Game Total (${legData.team})`;
                                                 }
 
