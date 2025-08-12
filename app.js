@@ -129,37 +129,49 @@ function updatePlayerProps(props) {
     // Enhanced prop categorization with detailed filters
     console.log('All props:', props); // Debug log
 
+    // Debug all props first
+    console.log('All available props:', props.map(p => ({
+        type: p.betType,
+        player: p.player,
+        category: p.category,
+        position: p.position
+    })));
+
     const categorizedProps = {
         hitting: props.filter(p => {
+            // Debug hitting prop checks
             const isPitchingProp = 
-                p.betType?.includes('pitcher_') ||
-                p.betType?.includes('strikeouts') ||
-                p.betType?.includes('quality_start') ||
-                p.betType?.includes('innings') ||
-                p.category === 'pitching' ||
+                p.betType?.toLowerCase().includes('pitcher') ||
+                p.betType?.toLowerCase().includes('strikeout') ||
+                p.betType?.toLowerCase().includes('quality_start') ||
+                p.betType?.toLowerCase().includes('innings') ||
+                p.category?.toLowerCase() === 'pitching' ||
                 p.position === 'P';
             
-            if (isPitchingProp) return false;
-
-            return p.betType?.includes('player_') ||
-                   p.betType?.includes('hits') ||
-                   p.betType?.includes('hr') ||
-                   p.betType?.includes('rbi') ||
-                   p.betType?.includes('bases') ||
-                   p.betType?.includes('runs') ||
-                   p.category === 'hitting';
+            const isHittingProp = 
+                p.betType?.toLowerCase().includes('hits') ||
+                p.betType?.toLowerCase().includes('hr') ||
+                p.betType?.toLowerCase().includes('rbi') ||
+                p.betType?.toLowerCase().includes('bases') ||
+                p.betType?.toLowerCase().includes('runs') ||
+                p.category?.toLowerCase() === 'hitting' ||
+                (p.betType?.toLowerCase().includes('player') && !isPitchingProp);
+            
+            console.log(`Hitting check for ${p.player || p.betType}: ${isHittingProp}`);
+            return isHittingProp && !isPitchingProp;
         }),
         pitching: props.filter(p => {
+            // Debug pitching prop checks
             const isPitchingProp = 
-                p.betType?.includes('pitcher_') ||
-                p.betType?.includes('strikeouts') ||
-                p.betType?.includes('quality_start') ||
-                p.betType?.includes('innings') ||
-                p.category === 'pitching' ||
+                p.betType?.toLowerCase().includes('pitcher') ||
+                p.betType?.toLowerCase().includes('strikeout') ||
+                p.betType?.toLowerCase().includes('quality_start') ||
+                p.betType?.toLowerCase().includes('innings') ||
+                p.category?.toLowerCase() === 'pitching' ||
                 p.position === 'P' ||
                 p.player?.toLowerCase().includes('pitcher');
             
-            console.log(`Prop ${p.player || p.betType}: isPitchingProp = ${isPitchingProp}`); // Debug log
+            console.log(`Pitching check for ${p.player || p.betType}: ${isPitchingProp}`);
             return isPitchingProp;
         }),
         streaks: props.filter(p => 
@@ -600,33 +612,44 @@ function formatMatchup(matchup, playerTeam) {
 }
 
 function filterPropsByCategory(category) {
-    // Get all prop sections
+    console.log('Filtering by category:', category); // Debug log
+
+    // Get all prop sections and cards
     const sections = document.querySelectorAll('.prop-section');
+    const allCards = document.querySelectorAll('.prop-card');
     
+    // Log initial state
+    console.log('Total prop cards:', allCards.length);
     sections.forEach(section => {
-        // Get the section type from the ID (e.g., "hittingProps" -> "hitting")
-        const sectionType = section.id.replace('Props', '').toLowerCase();
-        
-        if (category === 'all') {
-            // Show all non-empty sections for 'all' category
-            section.style.display = section.classList.contains('empty') ? 'none' : 'block';
-        } else {
-            // Only show the selected category if it's not empty
-            const shouldShow = sectionType === category && !section.classList.contains('empty');
-            section.style.display = shouldShow ? 'block' : 'none';
-            
-            // Log for debugging
-            console.log(`Section ${sectionType}: ${shouldShow ? 'showing' : 'hiding'} (empty: ${section.classList.contains('empty')})`);
-        }
+        console.log(`${section.id} cards:`, section.querySelectorAll('.prop-card').length);
     });
 
-    // Update counts in section headers
+    if (category === 'all') {
+        // Show all sections that have cards
+        sections.forEach(section => {
+            const hasCards = section.querySelectorAll('.prop-card').length > 0;
+            section.style.display = hasCards ? 'block' : 'none';
+            console.log(`Section ${section.id}: ${hasCards ? 'showing' : 'hiding'} (has cards: ${hasCards})`);
+        });
+    } else {
+        // Show only the selected category section if it has cards
+        sections.forEach(section => {
+            const sectionType = section.id.replace('Props', '').toLowerCase();
+            const hasCards = section.querySelectorAll('.prop-card').length > 0;
+            const shouldShow = sectionType === category && hasCards;
+            section.style.display = shouldShow ? 'block' : 'none';
+            console.log(`Section ${section.id}: ${shouldShow ? 'showing' : 'hiding'} (has cards: ${hasCards})`);
+        });
+    }
+
+    // Update section headers with correct counts
     sections.forEach(section => {
-        const visibleCards = section.querySelectorAll('.prop-card:not([style*="display: none"])').length;
+        const visibleCards = section.querySelectorAll('.prop-card').length;
         const header = section.querySelector('h3');
         if (header) {
             const sectionType = section.id.replace('Props', '');
             header.textContent = `${sectionType} Props (${visibleCards})`;
+            console.log(`Updated ${sectionType} header count: ${visibleCards}`);
         }
     });
 }
@@ -764,18 +787,45 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 });
 
 // Category buttons functionality
-document.querySelectorAll('.category-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        const category = btn.dataset.category;
-        
-        // Update active button
-        document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Filter prop sections
-        filterPropsByCategory(category);
+function initializeCategoryButtons() {
+    const categoryButtons = document.querySelectorAll('.category-btn');
+    console.log('Found category buttons:', categoryButtons.length); // Debug log
+
+    categoryButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const category = btn.dataset.category;
+            console.log('Category button clicked:', category); // Debug log
+            
+            // Update active button
+            categoryButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Filter prop sections
+            filterPropsByCategory(category);
+        });
     });
-});
+
+    // Set initial category if one is active
+    const activeButton = document.querySelector('.category-btn.active');
+    if (activeButton) {
+        console.log('Initial active category:', activeButton.dataset.category);
+        filterPropsByCategory(activeButton.dataset.category);
+    } else {
+        console.log('No active category, defaulting to all');
+        filterPropsByCategory('all');
+    }
+}
+
+// Initialize category buttons after DOM is loaded
+document.addEventListener('DOMContentLoaded', initializeCategoryButtons);
+
+// Also initialize after updating props
+function updatePlayerProps(props) {
+    // ... existing updatePlayerProps code ...
+    
+    // Re-initialize category buttons after updating props
+    initializeCategoryButtons();
+}
 
 // Export functionality
 document.getElementById('exportFab').addEventListener('click', () => {
