@@ -125,25 +125,64 @@ function updateTeamBets(teamBets) {
 
 function updatePlayerProps(props) {
     const propsContainer = document.getElementById('playerProps');
-    propsContainer.innerHTML = props.map(prop => `
-        <div class="prop-card" data-prop-type="${getPlayerPropCategory(prop.betType)}">
-            <div class="prop-header score-${getConfidenceClass(prop.score)}">
-                <span class="score">${prop.score.toFixed(1)}/10</span>
-                <span class="confidence">${prop.confidenceLabel || getConfidenceLabel(prop.score)}</span>
+    
+    // Categorize props
+    const categorizedProps = {
+        hitting: props.filter(p => !p.betType.includes('pitcher_') && p.betType.includes('player_')),
+        pitching: props.filter(p => p.betType.includes('pitcher_') || p.betType.includes('strikeout')),
+        streaks: props.filter(p => p.hot_streak?.isHot),
+        situational: props.filter(p => p.situational_factors?.score >= 2)
+    };
+    
+    // Debug log for prop counts
+    console.log('Props by category:', {
+        hitting: categorizedProps.hitting.length,
+        pitching: categorizedProps.pitching.length,
+        streaks: categorizedProps.streaks.length,
+        situational: categorizedProps.situational.length
+    });
+
+    propsContainer.innerHTML = `
+        <div class="props-sections">
+            <div id="hittingProps" class="prop-section ${categorizedProps.hitting.length ? '' : 'empty'}">
+                <h3>Hitting Props (${categorizedProps.hitting.length})</h3>
+                <div class="props-grid">
+                    ${renderPropCards(categorizedProps.hitting, 'hitting')}
+                </div>
             </div>
-            <div class="prop-content">
-                <h3>${prop.player}</h3>
-                <p class="team">${prop.team || getTeamFromMatchup(prop.matchup, prop.player) || ''}</p>
-                <p class="prop-type">${formatBetType(prop.betType)}</p>
-                <p class="game">${formatMatchup(prop.matchup, prop.team) || ''}</p>
-                <p class="odds">Odds: ${formatOdds(prop.odds)}</p>
-                <p class="reason">${prop.reason || ''}</p>
-                <div class="prop-actions">
-                    <button class="track-bet-btn" data-bet='${JSON.stringify(prop)}'>Track Bet</button>
+            
+            <div id="pitchingProps" class="prop-section ${categorizedProps.pitching.length ? '' : 'empty'}">
+                <h3>Pitching Props (${categorizedProps.pitching.length})</h3>
+                <div class="props-grid">
+                    ${renderPropCards(categorizedProps.pitching, 'pitching')}
+                </div>
+            </div>
+            
+            <div id="streakProps" class="prop-section ${categorizedProps.streaks.length ? '' : 'empty'}">
+                <h3>Hot Streaks (${categorizedProps.streaks.length})</h3>
+                <div class="props-grid">
+                    ${renderPropCards(categorizedProps.streaks, 'streaks')}
+                </div>
+            </div>
+            
+            <div id="situationalProps" class="prop-section ${categorizedProps.situational.length ? '' : 'empty'}">
+                <h3>Situational Props (${categorizedProps.situational.length})</h3>
+                <div class="props-grid">
+                    ${renderPropCards(categorizedProps.situational, 'situational')}
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+
+    // Add event listeners for track buttons
+    propsContainer.querySelectorAll('.track-bet-btn').forEach(btn => {
+        btn.addEventListener('click', () => trackBet(JSON.parse(btn.dataset.bet)));
+    });
+    
+    // Show relevant sections based on current category filter
+    const activeCategory = document.querySelector('.category-btn.active')?.dataset.category;
+    filterPropsByCategory(activeCategory || 'all');
+}
 
     // Add event listeners for track buttons
     propsContainer.querySelectorAll('.track-bet-btn').forEach(btn => {
@@ -224,6 +263,95 @@ function getPlayerPropCategory(betType) {
     if (betType.includes('strikeout') || betType.includes('earned_run')) return 'pitching';
     if (betType.includes('streak')) return 'streaks';
     return 'situational';
+}
+
+function renderPropCards(props, category) {
+    if (!props.length) {
+        return `
+            <div class="empty-state">
+                <i class="fas fa-info-circle"></i>
+                <p>No ${category} props available at this time</p>
+            </div>
+        `;
+    }
+
+    return props.map(prop => `
+        <div class="prop-card" data-prop-type="${category}">
+            <div class="prop-header score-${getConfidenceClass(prop.score)}">
+                <span class="score">${prop.score.toFixed(1)}/10</span>
+                <span class="confidence">${prop.confidenceLabel || getConfidenceLabel(prop.score)}</span>
+            </div>
+            <div class="prop-content">
+                <h3>${prop.player || prop.pitcher}</h3>
+                <p class="team">${prop.team || getTeamFromMatchup(prop.matchup, prop.player) || ''}</p>
+                <p class="prop-type">${formatBetType(prop.betType)}</p>
+                <p class="game">${formatMatchup(prop.matchup, prop.team) || ''}</p>
+                <p class="odds">Odds: ${formatOdds(prop.odds)}</p>
+                <p class="reason">${prop.reason || ''}</p>
+                ${renderPropStats(prop, category)}
+                ${renderFactorBadges(prop)}
+                <div class="prop-actions">
+                    <button class="track-bet-btn" data-bet='${JSON.stringify(prop)}'>Track Bet</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderPropStats(prop, category) {
+    switch(category) {
+        case 'streaks':
+            if (prop.hot_streak) {
+                return `
+                    <div class="prop-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">${(prop.hot_streak.battingStats?.recentAvg || 0).toFixed(3)}</span>
+                            <span class="stat-label">Recent AVG</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">${prop.hot_streak.battingStats?.recentHR || 0}</span>
+                            <span class="stat-label">Recent HR</span>
+                        </div>
+                    </div>
+                `;
+            }
+            break;
+        case 'pitching':
+            if (prop.pitching) {
+                return `
+                    <div class="prop-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">${prop.pitching.kPer9?.toFixed(1) || '-'}</span>
+                            <span class="stat-label">K/9</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">${prop.pitching.era?.toFixed(2) || '-'}</span>
+                            <span class="stat-label">ERA</span>
+                        </div>
+                    </div>
+                `;
+            }
+            break;
+    }
+    return '';
+}
+
+function renderFactorBadges(prop) {
+    const factors = [];
+    
+    if (prop.hot_streak?.isHot) factors.push('Hot Streak');
+    if (prop.situational_factors?.score >= 2) factors.push(...(prop.situational_factors.factors || []));
+    if (prop.batter_vs_pitcher?.avg > 0.300) factors.push('Strong vs Pitcher');
+    
+    if (!factors.length) return '';
+    
+    return `
+        <div class="factor-badges">
+            ${factors.map(factor => `
+                <span class="factor-badge">${factor}</span>
+            `).join('')}
+        </div>
+    `;
 }
 
 function formatBetType(betType) {
@@ -395,6 +523,23 @@ function formatMatchup(matchup, playerTeam) {
         return formattedMatchup.replace(playerTeam, `<strong>${playerTeam}</strong>`);
     }
     return formattedMatchup;
+}
+
+function filterPropsByCategory(category) {
+    const sections = document.querySelectorAll('.prop-section');
+    
+    if (category === 'all') {
+        sections.forEach(section => {
+            if (!section.classList.contains('empty')) {
+                section.style.display = 'block';
+            }
+        });
+    } else {
+        sections.forEach(section => {
+            const sectionType = section.id.replace('Props', '').toLowerCase();
+            section.style.display = (sectionType === category && !section.classList.contains('empty')) ? 'block' : 'none';
+        });
+    }
 }
 
 function showNotification(message, type = 'info') {
