@@ -241,32 +241,55 @@ function updateParlays(parlays) {
                                                     if (match) total = match[1];
                                                 }
                                                 
-                                                // Determine team info
+                                                // Extract bet details
                                                 const teamDisplay = leg.team || 
                                                     (leg.homeTeam && leg.awayTeam ? `${leg.awayTeam} @ ${leg.homeTeam}` : '');
                                                 
+                                                // Get the total being bet on
+                                                const betTotal = total || leg.line || leg.value || leg.total;
+                                                
+                                                // Determine if this is a team total or game total
+                                                const isTeamTotal = leg.betType?.toLowerCase().includes('team total');
+                                                
+                                                // Format bet description
+                                                let betDesc = '';
+                                                if (isTeamTotal && leg.team) {
+                                                    betDesc = `${leg.team} Team Total`;
+                                                } else if (teamDisplay) {
+                                                    betDesc = `Game Total (${teamDisplay})`;
+                                                }
+                                                
                                                 const legData = {
-                                                    total: total || leg.line || leg.value || leg.total,
+                                                    total: betTotal,
                                                     isUnder: leg.betType?.toLowerCase().includes('under'),
                                                     type: leg.propType || leg.type || '',
                                                     player: leg.player || '',
-                                                    team: teamDisplay
+                                                    team: teamDisplay,
+                                                    betDescription: betDesc
                                                 };
                                                 return `
                                                     <div class="bet-line">
                                                         <div class="bet-header">
-                                                            <div class="team-info">
-                                                                ${legData.team ? 
-                                                                    `<strong class="team-name">${legData.team}</strong>` :
-                                                                    legData.homeTeam && legData.awayTeam ? 
-                                                                    `<strong class="team-name">${legData.awayTeam} @ ${legData.homeTeam}</strong>` : 
-                                                                    ''}
-                                                            </div>
+                                                            ${legData.betDescription ? 
+                                                                `<div class="bet-desc">
+                                                                    <strong class="bet-type">${legData.betDescription}</strong>
+                                                                </div>` 
+                                                                : legData.team ? 
+                                                                    `<div class="team-info">
+                                                                        <strong class="team-name">${legData.team}</strong>
+                                                                    </div>` 
+                                                                    : legData.homeTeam && legData.awayTeam ? 
+                                                                        `<div class="team-info">
+                                                                            <strong class="team-name">${legData.awayTeam} @ ${legData.homeTeam}</strong>
+                                                                        </div>` 
+                                                                        : ''}
                                                             ${legData.total ? 
                                                                 `<div class="bet-type-info">
                                                                     <strong>${legData.isUnder ? 'Under' : 'Over'}</strong>
                                                                     <span class="total-value">${legData.total}</span>
-                                                                    ${legData.type ? `<span class="bet-type">${formatBetType(legData.type)}</span>` : ''}
+                                                                    ${legData.type && !legData.betDescription ? 
+                                                                        `<span class="bet-type">${formatBetType(legData.type)}</span>` 
+                                                                        : ''}
                                                                 </div>` 
                                                                 : legData.type ? 
                                                                     `<div class="bet-type-info">
