@@ -3,6 +3,7 @@
   command = """
     npm install
     cd netlify/functions/analyze && npm install
+    cd ../track-bets && npm install
   """
   functions = "netlify/functions"
 

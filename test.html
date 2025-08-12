@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MLB Analyzer Test</title>
+</head>
+<body>
+    <h1>MLB Analyzer Test</h1>
+    <button onclick="analyze()">Analyze Games</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function analyze() {
+            try {
+                const response = await fetch('http://localhost:9000/.netlify/functions/analyze');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('result').textContent = `Error: ${error.message}`;
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
