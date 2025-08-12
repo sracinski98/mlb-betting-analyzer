@@ -126,12 +126,12 @@ function updateTeamBets(teamBets) {
 function updatePlayerProps(props) {
     const propsContainer = document.getElementById('playerProps');
     
-    // Categorize props
+    // Categorize props with more inclusive filters
     const categorizedProps = {
-        hitting: props.filter(p => !p.betType.includes('pitcher_') && p.betType.includes('player_')),
-        pitching: props.filter(p => p.betType.includes('pitcher_') || p.betType.includes('strikeout')),
-        streaks: props.filter(p => p.hot_streak?.isHot),
-        situational: props.filter(p => p.situational_factors?.score >= 2)
+        hitting: props.filter(p => !p.betType.includes('pitcher_') && (p.betType.includes('player_') || p.betType.includes('hits') || p.betType.includes('hr') || p.betType.includes('rbi'))),
+        pitching: props.filter(p => p.betType.includes('pitcher_') || p.betType.includes('strikeout') || p.betType.includes('quality_start') || p.betType.includes('innings')),
+        streaks: props.filter(p => p.propFactor === 'hot_streak' || (p.player && p.player in (window.MLBAnalyticsEngine.prototype.playerDatabase || {}) && window.MLBAnalyticsEngine.prototype.playerDatabase[p.player]?.hotStreak)),
+        situational: props.filter(p => p.venueFactor || p.weatherFactor || (p.propFactor && p.propFactor !== 'hot_streak'))
     };
     
     // Debug log for prop counts
