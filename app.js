@@ -70,13 +70,13 @@ function updateTopPicks(recommendations) {
     topPicks.innerHTML = highConfPicks.map(pick => `
         <div class="pick-card">
             <div class="pick-header score-${getConfidenceClass(pick.score)}">
-                <span class="score">${pick.score}/10</span>
+                <span class="score">${pick.score.toFixed(1)}/10</span>
                 <span class="confidence">${pick.confidenceLabel || getConfidenceLabel(pick.score)}</span>
             </div>
             <div class="pick-content">
-                <h3>${pick.betType}</h3>
+                <h3>${formatBetType(pick.betType)}</h3>
                 <p class="matchup">${pick.matchup || pick.player || ''}</p>
-                <p class="reason">${pick.reason}</p>
+                <p class="reason">${pick.reason || ''}</p>
                 <div class="pick-actions">
                     <button class="track-bet-btn" data-bet='${JSON.stringify(pick)}'>Track Bet</button>
                 </div>
@@ -147,21 +147,21 @@ function updateParlays(parlays) {
     parlaysContainer.innerHTML = parlays.map(parlay => `
         <div class="parlay-card">
             <div class="parlay-header score-${getConfidenceClass(parlay.avgScore)}">
-                <span class="score">${parlay.avgScore}/10</span>
-                <span class="risk-level">${parlay.riskLevel.toUpperCase()}</span>
+                <span class="score">${parlay.avgScore.toFixed(1)}/10</span>
+                <span class="risk-level">${parlay.riskLevel ? parlay.riskLevel.toUpperCase() : getConfidenceLabel(parlay.avgScore)}</span>
             </div>
             <div class="parlay-content">
-                <h3>${parlay.type}</h3>
+                <h3>${parlay.legs.length}-leg parlay</h3>
                 <div class="parlay-legs">
                     ${parlay.legs.map(leg => `
                         <div class="parlay-leg">
-                            <p>${leg.matchup || leg.player}</p>
-                            <p>${leg.betType}</p>
-                            ${leg.odds ? `<p>Odds: ${formatOdds(leg.odds)}</p>` : ''}
+                            <h4>${leg.matchup || leg.player}</h4>
+                            <p class="bet-type">${formatBetType(leg.betType)}</p>
+                            ${leg.odds ? `<p class="odds">Odds: ${formatOdds(leg.odds)}</p>` : ''}
                         </div>
                     `).join('')}
                 </div>
-                <p class="reason">${parlay.reasoning}</p>
+                <p class="reason">${parlay.reasoning || ''}</p>
                 <div class="parlay-actions">
                     <button class="track-bet-btn" data-bet='${JSON.stringify(parlay)}'>Track Parlay</button>
                 </div>
@@ -198,6 +198,24 @@ function getConfidenceLabel(score) {
 function formatOdds(odds) {
     if (!odds) return 'N/A';
     return odds > 0 ? `+${odds}` : odds;
+}
+
+function formatBetType(betType) {
+    if (!betType) return 'N/A';
+    
+    // Convert under_total to "Under Total"
+    const formatted = betType
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    
+    // Special cases
+    if (betType.includes('player_')) {
+        if (betType.includes('over')) return 'Over';
+        if (betType.includes('under')) return 'Under';
+    }
+    
+    return formatted;
 }
 
 // Chart updates
@@ -269,6 +287,10 @@ function updateBetTypeChart(recommendations) {
 
 // Bet tracking
 async function trackBet(bet) {
+    const button = event.target;
+    button.disabled = true;
+    button.textContent = 'Tracking...';
+    
     try {
         const response = await fetch('/.netlify/functions/track-bets', {
             method: 'POST',
@@ -281,14 +303,20 @@ async function trackBet(bet) {
             })
         });
 
+        const data = await response.json();
+        
         if (!response.ok) {
-            throw new Error('Failed to track bet');
+            throw new Error(data.error || 'Failed to track bet');
         }
 
+        button.textContent = '✓ Tracked';
+        button.classList.add('tracked');
         showNotification('Bet tracked successfully!', 'success');
     } catch (error) {
         console.error('Error tracking bet:', error);
-        showNotification('Failed to track bet', 'error');
+        button.disabled = false;
+        button.textContent = 'Track Bet';
+        showNotification(error.message || 'Failed to track bet', 'error');
     }
 }
 
