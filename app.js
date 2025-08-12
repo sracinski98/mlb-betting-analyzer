@@ -211,14 +211,24 @@ function updateParlays(parlays) {
                                         <p class="odds-line">Expected Odds: ${parlay.expectedOdds || 'N/A'}</p>
                                         <p class="parlay-legs-count">${parlay.legs.length}-leg parlay</p>
                                         <div class="bet-summary">
-                                            ${parlay.legs.map(leg => `
-                                                <div class="bet-line">
-                                                    <strong>${leg.betType.toLowerCase().includes('under') ? 'Under' : 'Over'}</strong>
-                                                    ${leg.total} ${leg.propType || ''} 
-                                                    ${leg.player ? `(${leg.player})` : ''}
-                                                    <span class="confidence-indicator ${leg.confidence?.toLowerCase()}">${leg.confidence?.toUpperCase()}</span>
-                                                </div>
-                                            `).join('')}
+                                            ${parlay.legs.map(leg => {
+                                                // Parse the line value from propLine or reason
+                                                const lineMatch = leg.propLine?.match(/[OUou]nder (\d+\.?\d*)/);
+                                                const total = lineMatch ? lineMatch[1] : 
+                                                    leg.reason?.match(/[OUou]nder (\d+\.?\d*)/)?.[1] || 'N/A';
+                                                const isUnder = leg.betType?.toLowerCase().includes('under') || 
+                                                    leg.propLine?.toLowerCase().includes('under') ||
+                                                    leg.reason?.toLowerCase().includes('under');
+                                                return `
+                                                    <div class="bet-line">
+                                                        <strong>${isUnder ? 'Under' : 'Over'}</strong>
+                                                        <span class="total-value">${total}</span> 
+                                                        ${leg.propType || ''} 
+                                                        ${leg.player ? `(${leg.player})` : ''}
+                                                        <span class="confidence-indicator ${leg.confidence?.toLowerCase()}">${leg.confidence?.toUpperCase()}</span>
+                                                    </div>
+                                                `;
+                                            }).join('')}
                                         </div>
                                         <p class="analysis">${parlay.reasoning || 'No analysis available'}</p>
                                     </div>
@@ -230,13 +240,25 @@ function updateParlays(parlays) {
                                                     ${leg.confidence ? `<span class="confidence-pill ${leg.confidence.toLowerCase()}">${leg.confidence.toUpperCase()}</span>` : ''}
                                                 </div>
                                                 ${leg.player ? `<p class="player-name">${leg.player}</p>` : ''}
-                                                ${leg.total ? 
-                                                    `<p class="prop-line highlight">
-                                                        ${leg.betType.toLowerCase().includes('under') ? 'Under' : 'Over'} 
-                                                        ${leg.total} 
-                                                        ${leg.propType || ''}
-                                                    </p>` : 
-                                                    (leg.propLine ? `<p class="prop-line">${leg.propLine}</p>` : '')}
+                                                ${(() => {
+                                                    const lineMatch = leg.propLine?.match(/[OUou]nder (\d+\.?\d*)/);
+                                                    const total = lineMatch ? lineMatch[1] : 
+                                                        leg.reason?.match(/[OUou]nder (\d+\.?\d*)/)?.[1];
+                                                    const isUnder = leg.betType?.toLowerCase().includes('under') || 
+                                                        leg.propLine?.toLowerCase().includes('under') ||
+                                                        leg.reason?.toLowerCase().includes('under');
+                                                    
+                                                    if (total) {
+                                                        return `
+                                                            <p class="prop-line highlight">
+                                                                ${isUnder ? 'Under' : 'Over'} ${total} 
+                                                                ${leg.propType || ''}
+                                                            </p>`;
+                                                    } else if (leg.propLine) {
+                                                        return `<p class="prop-line">${leg.propLine}</p>`;
+                                                    }
+                                                    return '';
+                                                })()}
                                                 <p class="leg-analysis">${leg.reason || 'No analysis available'}</p>
                                             </div>
                                         `).join('')}
