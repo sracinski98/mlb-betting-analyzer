@@ -10,12 +10,27 @@ async function getTodaysGames() {
 }
 
 async function getOdds() {
-  const apiKey = process.env.ODDS_API_KEY || 'fe3e1db58259d6d7d3599e2ae3d22ecc';
-  const oddsUrl = `https://api.the-odds-api.com/v4/sports/baseball_mlb/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals,player_props&oddsFormat=american`;
-  
-  const response = await fetch(oddsUrl);
-  const data = await response.json();
-  return data;
+  try {
+    const apiKey = process.env.ODDS_API_KEY || 'fe3e1db58259d6d7d3599e2ae3d22ecc';
+    const oddsUrl = `https://api.the-odds-api.com/v4/sports/baseball_mlb/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals,player_props&oddsFormat=american`;
+    
+    const response = await fetch(oddsUrl);
+    if (!response.ok) {
+      throw new Error(`Odds API returned ${response.status}: ${response.statusText}`);
+    }
+    const data = await response.json();
+    
+    // Ensure we got an array back
+    if (!Array.isArray(data)) {
+      console.error('Unexpected odds data format:', data);
+      return [];
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching odds:', error);
+    return [];
+  }
 }
 
 function calculateImpliedProbability(odds) {
@@ -66,7 +81,7 @@ async function getPlayerStats(playerId) {
   }
 }
 
-function findValueBets(games, odds) {
+function findValueBets(games, oddsData) {
   const valueBets = [];
   const parlayOpportunities = [];
   const playerProps = [];
@@ -75,8 +90,15 @@ function findValueBets(games, odds) {
   const teamNameMap = {
     'New York Yankees': 'NY Yankees',
     'Boston Red Sox': 'Boston',
+    'Los Angeles Angels': 'LA Angels',
+    'Chicago White Sox': 'Chi White Sox',
+    'St. Louis Cardinals': 'St. Louis',
+    'Los Angeles Dodgers': 'LA Dodgers',
     // Add more mappings as needed
   };
+
+  // Ensure oddsData is an array
+  const odds = Array.isArray(oddsData) ? oddsData : [oddsData];
 
   games.forEach(game => {
     const homeTeam = game.teams.home.team.name;
@@ -84,8 +106,14 @@ function findValueBets(games, odds) {
     const matchup = `${awayTeam} vs ${homeTeam}`;
 
     const matchingOdds = odds.find(odd => {
-      const homeTeamMatch = odd.home_team === homeTeam || odd.home_team === teamNameMap[homeTeam];
-      const awayTeamMatch = odd.away_team === awayTeam || odd.away_team === teamNameMap[awayTeam];
+      const homeTeamMatch = odd.home_team === homeTeam || 
+                          odd.home_team === teamNameMap[homeTeam] || 
+                          homeTeam.includes(odd.home_team) ||
+                          (teamNameMap[homeTeam] && teamNameMap[homeTeam].includes(odd.home_team));
+      const awayTeamMatch = odd.away_team === awayTeam || 
+                          odd.away_team === teamNameMap[awayTeam] ||
+                          awayTeam.includes(odd.away_team) ||
+                          (teamNameMap[awayTeam] && teamNameMap[awayTeam].includes(odd.away_team));
       return homeTeamMatch && awayTeamMatch;
     });
 
@@ -152,12 +180,60 @@ function findValueBets(games, odds) {
 }
 
 exports.handler = async function (event, context) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST'
+  };
+
   try {
+    // Handle preflight requests
+    if (event.httpMethod === 'OPTIONS') {
+      return {
+        statusCode: 204,
+        headers
+      };
+    }
+
+    console.log('Fetching games and odds...');
     const [games, odds] = await Promise.all([
       getTodaysGames(),
       getOdds()
     ]);
 
+    console.log('Games fetched:', games.length);
+    console.log('Odds fetched:', Array.isArray(odds) ? odds.length : 'not an array');
+
+    if (!Array.isArray(games) || games.length === 0) {
+      console.log('No games found for today');
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          team_bets: [],
+          player_props: [],
+          parlays: [],
+          message: 'No games found for today'
+        })
+      };
+    }
+
+    if (!Array.isArray(odds) || odds.length === 0) {
+      console.log('No odds data available');
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          team_bets: [],
+          player_props: [],
+          parlays: [],
+          message: 'No odds data available'
+        })
+      };
+    }
+
+    console.log('Processing bets...');
     const response = findValueBets(games, odds);
 
     // Store results in our tracking system
@@ -165,28 +241,23 @@ exports.handler = async function (event, context) {
       const betSelections = JSON.parse(event.body);
       // Here you would implement the storage of selected bets
       // This could be in a database or other persistent storage
+      console.log('Tracking bets:', betSelections);
     }
 
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST'
-      },
+      headers,
       body: JSON.stringify(response)
     };
   } catch (error) {
+    console.error('Error in analyze function:', error);
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST'
-      },
-      body: JSON.stringify({ error: error.message })
+      headers,
+      body: JSON.stringify({ 
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      })
     };
   }
 };
