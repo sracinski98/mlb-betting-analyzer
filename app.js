@@ -184,11 +184,6 @@ function updatePlayerProps(props) {
     filterPropsByCategory(activeCategory || 'all');
 }
 
-    // Add event listeners for track buttons
-    propsContainer.querySelectorAll('.track-bet-btn').forEach(btn => {
-        btn.addEventListener('click', () => trackBet(JSON.parse(btn.dataset.bet)));
-    });
-}
 
 function updateParlays(parlays) {
     const parlaysContainer = document.getElementById('parlaysList');
