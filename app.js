@@ -1,8 +1,16 @@
-// Disable WebSocket debug connections in production
-if (process.env.NODE_ENV === 'production' || !process.env.VITE_ENABLE_DEVTOOLS) {
-    window.__VUE_DEVTOOLS_SOCKET__ = null;
-    window.__VUE_DEVTOOLS_CONNECT__ = () => {};
-}
+// Disable WebSocket debug connections
+const disableDevTools = () => {
+    try {
+        window.__VUE_DEVTOOLS_SOCKET__ = null;
+        window.__VUE_DEVTOOLS_CONNECT__ = () => {};
+        console.log('DevTools connections disabled');
+    } catch (err) {
+        console.warn('Failed to disable DevTools:', err);
+    }
+};
+
+// Call it immediately
+disableDevTools();
 
 // Store chart instances globally
 let confidenceChartInstance = null;
