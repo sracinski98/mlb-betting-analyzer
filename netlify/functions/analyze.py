@@ -1,36 +1,26 @@
-import json
-import sys
-import os
-import logging
-import traceback
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Add the project root to Python path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-sys.path.append(project_root)
-logger.info(f"Python path: {sys.path}")
-logger.info(f"Current directory: {os.getcwd()}")
-logger.info(f"Project root: {project_root}")
-
-try:
-    from mlb_analyzer.data.mlb_api import MLBApi
-    logger.info("Successfully imported MLBApi")
-except Exception as e:
-    logger.error(f"Error importing MLBApi: {str(e)}")
-    logger.error(traceback.format_exc())
-    raise
-
-try:
-    odds_api_key = os.environ.get('ODDS_API_KEY', 'fe3e1db58259d6d7d3599e2ae3d22ecc')
-    mlb_api = MLBApi(odds_api_key=odds_api_key)
-    logger.info("Successfully initialized MLBApi")
-except Exception as e:
-    logger.error(f"Error initializing MLBApi: {str(e)}")
-    logger.error(traceback.format_exc())
-    raise
+def handler(event, context):
+    try:
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Methods": "GET"
+            },
+            "body": """{"team_bets": [{"matchup": "Test A vs Test B", "team": "Test A", "bet_type": "Moneyline", "odds": 150, "implied_prob": 40.0}], "parlays": [{"leg": "Test Parlay", "team": "Test A + Test C", "odds": 250, "implied_prob": 28.5}]}"""
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Methods": "GET"
+            },
+            "body": f'{{"error": "{str(e)}"}}'
+        }
 
 def analyze_games(mlb_api):
     try:
