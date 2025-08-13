@@ -1,16 +1,33 @@
-// Disable WebSocket debug connections
-const disableDevTools = () => {
-    try {
-        window.__VUE_DEVTOOLS_SOCKET__ = null;
-        window.__VUE_DEVTOOLS_CONNECT__ = () => {};
-        console.log('DevTools connections disabled');
-    } catch (err) {
-        console.warn('Failed to disable DevTools:', err);
-    }
-};
+// Disable WebSocket debug connections and dev tools
+(function() {
+    // Block WebSocket connections to debug ports
+    const originalWebSocket = window.WebSocket;
+    window.WebSocket = function(url, protocols) {
+        if (url.includes('localhost:8098') || url.includes('ws://localhost')) {
+            console.debug('Blocked WebSocket connection to:', url);
+            return {
+                close: () => {},
+                send: () => {},
+                addEventListener: () => {},
+                removeEventListener: () => {}
+            };
+        }
+        return new originalWebSocket(url, protocols);
+    };
+    window.WebSocket.prototype = originalWebSocket.prototype;
 
-// Call it immediately
-disableDevTools();
+    // Disable Vue devtools
+    window.__VUE_DEVTOOLS_SOCKET__ = null;
+    window.__VUE_DEVTOOLS_CONNECT__ = () => {};
+
+    // Prevent console errors for message port
+    window.addEventListener('error', (event) => {
+        if (event.message.includes('message port') || event.message.includes('runtime.lastError')) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    });
+})();
 
 // Store chart instances globally
 let confidenceChartInstance = null;
